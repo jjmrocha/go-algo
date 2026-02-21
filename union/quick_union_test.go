@@ -82,7 +82,7 @@ func TestUnion_decreasesSetCount(t *testing.T) {
 func TestIsConnected_falseForFreshNodes(t *testing.T) {
 	u := New(4)
 	if u.IsConnected(0, 1) {
-		t.Error("expected 0 and 1 to be disconnected in a fresh UnionFind")
+		t.Error("expected 0 and 1 to be disconnected in a fresh QuickUnion")
 	}
 }
 
@@ -124,7 +124,7 @@ func TestString_flatTree(t *testing.T) {
 	u := New(3)
 	u.Union(0, 1)
 	u.Union(0, 2)
-	want := "0 <- 1 \n0 <- 2 \n"
+	want := "0 <- 1\n0 <- 2"
 	if got := u.String(); got != want {
 		t.Errorf("got:\n%q\nwant:\n%q", got, want)
 	}
@@ -135,7 +135,7 @@ func TestString_nestedTree(t *testing.T) {
 	u.Union(0, 1)
 	u.Union(2, 3)
 	u.Union(0, 2)
-	want := "0 <- 1 \n0 <- 2 \n2 <- 3 \n"
+	want := "0 <- 1\n0 <- 2\n2 <- 3"
 	if got := u.String(); got != want {
 		t.Errorf("got:\n%q\nwant:\n%q", got, want)
 	}
@@ -146,7 +146,7 @@ func TestString_twoSeparateTrees(t *testing.T) {
 	u.Union(0, 1)
 	u.Union(0, 2)
 	u.Union(3, 4)
-	want := "0 <- 1 \n0 <- 2 \n3 <- 4 \n"
+	want := "0 <- 1\n0 <- 2\n3 <- 4"
 	if got := u.String(); got != want {
 		t.Errorf("got:\n%q\nwant:\n%q", got, want)
 	}
