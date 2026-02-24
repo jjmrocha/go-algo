@@ -2,9 +2,8 @@
 // enabling asynchronous computation with context-aware cancellation.
 //
 // A Future represents a value that will be available at some point in the
-// future, produced by an asynchronous operation. The caller can either block
-// until the result is ready ([Future.Await]) or register a callback to be
-// invoked when the result becomes available ([Future.Then]).
+// future, produced by an asynchronous operation. The caller blocks until the
+// result is ready via [Future.Await].
 //
 // Example usage:
 //
@@ -15,7 +14,15 @@
 //	result, err := f.Await(ctx)
 package future
 
-import "context"
+import (
+	"context"
+	"errors"
+	"sync/atomic"
+)
+
+// ErrAwaitAlreadyCalled is returned when the Await method was already called
+// for the future
+var ErrAwaitAlreadyCalled = errors.New("await already called")
 
 // payload is the internal carrier for a computation result, bundling the
 // produced value and any error returned by the async provider.
@@ -25,18 +32,19 @@ type payload[T any] struct {
 }
 
 // Future represents the result of an asynchronous computation of type T.
-// It is safe to call [Future.Await] or [Future.Then] from multiple goroutines,
-// but each call will race to consume the single result; only one caller will
-// receive the value. For fan-out scenarios, each consumer should obtain its
-// own Future via [Async].
+// Concurrent calls to [Future.Await] are safe: the first caller receives the
+// result, subsequent callers get [ErrAwaitAlreadyCalled]. For fan-out
+// scenarios, each consumer should obtain its own Future via [Async].
 type Future[T any] struct {
-	ch chan payload[T]
+	ch     chan payload[T]
+	called atomic.Bool
 }
 
-// new creates an uninitialised Future with an unbuffered channel.
-func new[T any]() *Future[T] {
+// newFuture creates an uninitialised Future with a buffered channel of capacity 1,
+// ensuring the producer goroutine never blocks even if Await returns early.
+func newFuture[T any]() *Future[T] {
 	return &Future[T]{
-		ch: make(chan payload[T]),
+		ch: make(chan payload[T], 1),
 	}
 }
 
@@ -44,14 +52,11 @@ func new[T any]() *Future[T] {
 // hold the result once the goroutine completes. The provided context is
 // forwarded to provider, allowing the async work to respect cancellation
 // deadlines set by the caller.
-//
-// The returned Future must be consumed exactly once via [Future.Await] or
-// [Future.Then] to avoid leaking the goroutine.
 func Async[T any](ctx context.Context, provider func(context.Context) (T, error)) *Future[T] {
-	f := new[T]()
+	f := newFuture[T]()
 	go func() {
-		v, err := provider(ctx)
-		f.ch <- payload[T]{v, err}
+		val, err := provider(ctx)
+		f.ch <- payload[T]{val, err}
 		close(f.ch)
 	}()
 	return f
@@ -64,23 +69,16 @@ func Async[T any](ctx context.Context, provider func(context.Context) (T, error)
 // zero value of T together with ctx.Err(). If the computation finishes first,
 // Await returns the value and error produced by the provider passed to [Async].
 func (f *Future[T]) Await(ctx context.Context) (T, error) {
+	var zero T
+
+	if !f.called.CompareAndSwap(false, true) {
+		return zero, ErrAwaitAlreadyCalled
+	}
+
 	select {
 	case payload := <-f.ch:
 		return payload.val, payload.err
 	case <-ctx.Done():
-		var zero T
 		return zero, ctx.Err()
 	}
-}
-
-// Then registers consumer as a callback to be invoked asynchronously when
-// the Future's result is ready. The callback receives the same (value, error)
-// pair that [Future.Await] would return, including any context cancellation
-// error if ctx expires before the computation completes.
-//
-// Then returns immediately; consumer is called in a new goroutine.
-func (f *Future[T]) Then(ctx context.Context, consumer func(T, error)) {
-	go func() {
-		consumer(f.Await(ctx))
-	}()
 }

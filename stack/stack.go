@@ -57,8 +57,8 @@ func (s *Stack[T]) Peek() (T, bool) {
 	return s.last.data, true
 }
 
-// Size returns the number of elements currently in the stack.
-func (s *Stack[T]) Size() int64 {
+// Len returns the number of elements currently in the stack.
+func (s *Stack[T]) Len() int64 {
 	return s.size
 }
 
