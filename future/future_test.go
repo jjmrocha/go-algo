@@ -8,7 +8,7 @@ import (
 )
 
 func asyncFuncMaker[T any](value T, err error) func(context.Context) (T, error) {
-	return func(ctx context.Context) (T, error) {
+	return func(_ context.Context) (T, error) {
 		time.Sleep(10 * time.Millisecond)
 		return value, err
 	}
@@ -52,7 +52,7 @@ func TestAsyncWithWait(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			// when
-			got, err := Async(ctx, asyncFuncMaker(test.value, test.error)).
+			got, err := AsyncWithContext(ctx, asyncFuncMaker(test.value, test.error)).
 				Await(ctx)
 			// then
 			if test.expectError != nil {
@@ -77,7 +77,7 @@ func TestAsyncWithTimeout(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Millisecond)
 	defer cancel()
 	// when
-	_, err := Async(ctx, asyncFuncMaker(1, nil)).
+	_, err := AsyncWithContext(ctx, asyncFuncMaker(1, nil)).
 		Await(ctx)
 	// then
 	if !errors.Is(err, context.DeadlineExceeded) {
@@ -90,7 +90,7 @@ func TestAsyncWithCancel(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 	// when
-	_, err := Async(ctx, asyncFuncMaker(1, nil)).
+	_, err := AsyncWithContext(ctx, asyncFuncMaker(1, nil)).
 		Await(ctx)
 	// then
 	if !errors.Is(err, context.Canceled) {
@@ -101,7 +101,7 @@ func TestAsyncWithCancel(t *testing.T) {
 func TestAwaitCanOnlyBeCalledOnce(t *testing.T) {
 	// given
 	ctx := t.Context()
-	f := Async(ctx, asyncFuncMaker(42, nil))
+	f := AsyncWithContext(ctx, asyncFuncMaker(42, nil))
 	f.Await(ctx) //nolint:errcheck // first call consumes the result
 	// when
 	_, err := f.Await(ctx)

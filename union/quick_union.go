@@ -27,7 +27,7 @@ func New(size int) *QuickUnion {
 	p := make([]int, size)
 	w := make([]int, size)
 
-	for i := 0; i < size; i++ {
+	for i := range size {
 		p[i] = i
 		w[i] = 1
 	}
