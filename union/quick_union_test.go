@@ -1,13 +1,23 @@
 package union
 
-import "testing"
+import (
+	"errors"
+	"testing"
+)
+
+func mustUnion(t *testing.T, u *QuickUnion, p, q int) {
+	t.Helper()
+	if err := u.Union(p, q); err != nil {
+		t.Fatalf("setup Union(%d, %d) failed: %v", p, q, err)
+	}
+}
 
 func TestNewCountEqualsSize(t *testing.T) {
 	// when
 	u := New(5)
 	// then
-	if u.Count() != 5 {
-		t.Fatalf("Expected 5 sets, got %d", u.Count())
+	if u.Len() != 5 {
+		t.Fatalf("Expected 5 sets, got %d", u.Len())
 	}
 }
 
@@ -16,7 +26,11 @@ func TestNewEachNodeIsItsOwnRoot(t *testing.T) {
 	u := New(4)
 	// then
 	for i := range 4 {
-		if root := u.Find(i); root != i {
+		root, err := u.Find(i)
+		if err != nil {
+			t.Fatalf("Find(%d) returned unexpected error: %v", i, err)
+		}
+		if root != i {
 			t.Fatalf("Expected node %d to be its own root, got %d", i, root)
 		}
 	}
@@ -26,10 +40,10 @@ func TestFindOutOfRangeLow(t *testing.T) {
 	// given
 	u := New(3)
 	// when
-	got := u.Find(-1)
+	_, err := u.Find(-1)
 	// then
-	if got != IndexOutOfRange {
-		t.Fatalf("Find(-1) = %d; want IndexOutOfRange", got)
+	if !errors.Is(err, ErrIndexOutOfRange) {
+		t.Fatalf("Find(-1) error = %v; want ErrIndexOutOfRange", err)
 	}
 }
 
@@ -37,68 +51,68 @@ func TestFindOutOfRangeHigh(t *testing.T) {
 	// given
 	u := New(3)
 	// when
-	got := u.Find(3)
+	_, err := u.Find(3)
 	// then
-	if got != IndexOutOfRange {
-		t.Fatalf("Find(3) = %d; want IndexOutOfRange", got)
+	if !errors.Is(err, ErrIndexOutOfRange) {
+		t.Fatalf("Find(3) error = %v; want ErrIndexOutOfRange", err)
 	}
 }
 
 func TestFindReturnsRoot(t *testing.T) {
 	// given
 	u := New(3)
-	u.Union(0, 1)
+	mustUnion(t, u, 0, 1)
 	// when
-	root0 := u.Find(0)
-	root1 := u.Find(1)
+	root0, _ := u.Find(0)
+	root1, _ := u.Find(1)
 	// then
 	if root0 != root1 {
 		t.Fatalf("Expected same root after Union(0,1), got %d and %d", root0, root1)
 	}
 }
 
-func TestUnionReturnsTrueOnNewConnection(t *testing.T) {
+func TestUnionSucceedsOnNewConnection(t *testing.T) {
 	// given
 	u := New(3)
 	// when
-	ok := u.Union(0, 1)
+	err := u.Union(0, 1)
 	// then
-	if !ok {
-		t.Fatalf("Union(0,1) = false; want true")
+	if err != nil {
+		t.Fatalf("Union(0,1) = %v; want nil", err)
 	}
 }
 
-func TestUnionReturnsFalseWhenAlreadyConnected(t *testing.T) {
+func TestUnionSucceedsWhenAlreadyConnected(t *testing.T) {
 	// given
 	u := New(3)
-	u.Union(0, 1)
+	mustUnion(t, u, 0, 1)
 	// when
-	ok := u.Union(0, 1)
+	err := u.Union(0, 1)
 	// then
-	if ok {
-		t.Fatalf("Union(0,1) second call = true; want false")
+	if err != nil {
+		t.Fatalf("Union(0,1) second call = %v; want nil", err)
 	}
 }
 
-func TestUnionReturnsFalseForLowOutOfRange(t *testing.T) {
+func TestUnionErrorsForLowOutOfRange(t *testing.T) {
 	// given
 	u := New(3)
 	// when
-	ok := u.Union(-1, 0)
+	err := u.Union(-1, 0)
 	// then
-	if ok {
-		t.Fatalf("Union(-1,0) = true; want false")
+	if err == nil {
+		t.Fatalf("Union(-1,0) = nil; want ErrIndexOutOfRange")
 	}
 }
 
-func TestUnionReturnsFalseForHighOutOfRange(t *testing.T) {
+func TestUnionErrorsForHighOutOfRange(t *testing.T) {
 	// given
 	u := New(3)
 	// when
-	ok := u.Union(0, 10)
+	err := u.Union(0, 10)
 	// then
-	if ok {
-		t.Fatalf("Union(0,10) = true; want false")
+	if err == nil {
+		t.Fatalf("Union(0,10) = nil; want ErrIndexOutOfRange")
 	}
 }
 
@@ -106,10 +120,10 @@ func TestUnionDecreasesSetCount(t *testing.T) {
 	// given
 	u := New(3)
 	// when
-	u.Union(0, 1)
+	mustUnion(t, u, 0, 1)
 	// then
-	if u.Count() != 2 {
-		t.Fatalf("Expected 2 sets after one union, got %d", u.Count())
+	if u.Len() != 2 {
+		t.Fatalf("Expected 2 sets after one union, got %d", u.Len())
 	}
 }
 
@@ -117,7 +131,7 @@ func TestIsConnectedFalseForFreshNodes(t *testing.T) {
 	// given
 	u := New(4)
 	// when
-	connected := u.IsConnected(0, 1)
+	connected, _ := u.Connected(0, 1)
 	// then
 	if connected {
 		t.Fatalf("Expected 0 and 1 to be disconnected in a fresh QuickUnion")
@@ -127,9 +141,9 @@ func TestIsConnectedFalseForFreshNodes(t *testing.T) {
 func TestIsConnectedTrueAfterUnion(t *testing.T) {
 	// given
 	u := New(4)
-	u.Union(0, 1)
+	mustUnion(t, u, 0, 1)
 	// when
-	connected := u.IsConnected(0, 1)
+	connected, _ := u.Connected(0, 1)
 	// then
 	if !connected {
 		t.Fatalf("Expected 0 and 1 to be connected after Union(0,1)")
@@ -139,10 +153,10 @@ func TestIsConnectedTrueAfterUnion(t *testing.T) {
 func TestIsConnectedTransitivity(t *testing.T) {
 	// given
 	u := New(4)
-	u.Union(0, 1)
-	u.Union(1, 2)
+	mustUnion(t, u, 0, 1)
+	mustUnion(t, u, 1, 2)
 	// when
-	connected := u.IsConnected(0, 2)
+	connected, _ := u.Connected(0, 2)
 	// then
 	if !connected {
 		t.Fatalf("Expected 0 and 2 to be connected via transitivity")
@@ -153,10 +167,10 @@ func TestIsConnectedFalseForLowOutOfRange(t *testing.T) {
 	// given
 	u := New(3)
 	// when
-	connected := u.IsConnected(-1, 0)
+	connected, _ := u.Connected(-1, 0)
 	// then
 	if connected {
-		t.Fatalf("IsConnected(-1,0) = true; want false")
+		t.Fatalf("Connected(-1,0) = true; want false")
 	}
 }
 
@@ -164,10 +178,10 @@ func TestIsConnectedFalseForHighOutOfRange(t *testing.T) {
 	// given
 	u := New(3)
 	// when
-	connected := u.IsConnected(0, 10)
+	connected, _ := u.Connected(0, 10)
 	// then
 	if connected {
-		t.Fatalf("IsConnected(0,10) = true; want false")
+		t.Fatalf("Connected(0,10) = true; want false")
 	}
 }
 
@@ -185,8 +199,8 @@ func TestStringFreshForest(t *testing.T) {
 func TestStringFlatTree(t *testing.T) {
 	// given
 	u := New(3)
-	u.Union(0, 1)
-	u.Union(0, 2)
+	mustUnion(t, u, 0, 1)
+	mustUnion(t, u, 0, 2)
 	// when
 	got := u.String()
 	// then
@@ -199,9 +213,9 @@ func TestStringFlatTree(t *testing.T) {
 func TestStringNestedTree(t *testing.T) {
 	// given
 	u := New(4)
-	u.Union(0, 1)
-	u.Union(2, 3)
-	u.Union(0, 2)
+	mustUnion(t, u, 0, 1)
+	mustUnion(t, u, 2, 3)
+	mustUnion(t, u, 0, 2)
 	// when
 	got := u.String()
 	// then
@@ -214,9 +228,9 @@ func TestStringNestedTree(t *testing.T) {
 func TestStringTwoSeparateTrees(t *testing.T) {
 	// given
 	u := New(6)
-	u.Union(0, 1)
-	u.Union(0, 2)
-	u.Union(3, 4)
+	mustUnion(t, u, 0, 1)
+	mustUnion(t, u, 0, 2)
+	mustUnion(t, u, 3, 4)
 	// when
 	got := u.String()
 	// then
