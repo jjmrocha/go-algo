@@ -3,23 +3,24 @@
 package union
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
 )
 
-// IndexOutOfRange is returned by Find when the given index is outside
+// ErrIndexOutOfRange is returned by Find when the given index is outside
 // the valid range [0, size).
-const IndexOutOfRange = -1
+var ErrIndexOutOfRange = errors.New("index of bounds")
 
 // QuickUnion is a disjoint-set data structure that tracks a
 // collection of elements partitioned into non-overlapping sets. It uses
 // union by weight and half-path compression to achieve near-constant
 // time for each operation.
 type QuickUnion struct {
-	sets    int
-	parents []int
-	weights []int
+	sets   int
+	parent []int
+	weight []int
 }
 
 // New creates a QuickUnion with size elements, each initially in its own set.
@@ -33,90 +34,90 @@ func New(size int) *QuickUnion {
 	}
 
 	return &QuickUnion{
-		sets:    size,
-		parents: p,
-		weights: w,
+		sets:   size,
+		parent: p,
+		weight: w,
 	}
 }
 
-// Count returns the number of disjoint sets.
-func (u *QuickUnion) Count() int {
+// Len returns the number of disjoint sets.
+func (u *QuickUnion) Len() int {
 	return u.sets
 }
 
 // Find returns the root of the set containing p, applying half-path
-// compression along the way. It returns IndexOutOfRange if p is out of
+// compression along the way. It returns ErrIndexOutOfRange if p is out of
 // bounds.
-func (u *QuickUnion) Find(p int) int {
-	if p < 0 || p >= len(u.parents) {
-		return IndexOutOfRange
+func (u *QuickUnion) Find(p int) (int, error) {
+	if p < 0 || p >= len(u.parent) {
+		return 0, ErrIndexOutOfRange
 	}
 
-	for p != u.parents[p] {
-		parent := u.parents[p]
-		u.parents[p] = u.parents[parent]
-		p = parent
+	for p != u.parent[p] {
+		parent := u.parent[p]
+		u.parent[p] = u.parent[parent]
+		p = u.parent[p]
 	}
 
-	return u.parents[p]
+	return u.parent[p], nil
 }
 
 // Union merges the sets containing p and q using union by weight.
 // It returns true if the two elements were in different sets and were
 // successfully merged, and false if they were already connected or either
 // index is out of bounds.
-func (u *QuickUnion) Union(p, q int) bool {
-	rp := u.Find(p)
-	if rp == IndexOutOfRange {
-		return false
+func (u *QuickUnion) Union(p, q int) error {
+	rp, err := u.Find(p)
+	if err != nil {
+		return err
 	}
 
-	rq := u.Find(q)
-	if rq == IndexOutOfRange {
-		return false
+	rq, err := u.Find(q)
+	if err != nil {
+		return err
 	}
 
 	if rp == rq {
-		return false
+		return nil
 	}
 
-	wp := u.weights[rp]
-	wq := u.weights[rq]
+	wp := u.weight[rp]
+	wq := u.weight[rq]
 
 	if wp < wq {
-		u.parents[rp] = rq
-		u.weights[rq] += wp
+		u.parent[rp] = rq
+		u.weight[rq] += wp
 	} else {
-		u.parents[rq] = rp
-		u.weights[rp] += wq
+		u.parent[rq] = rp
+		u.weight[rp] += wq
 	}
 
 	u.sets--
-	return true
+	return nil
 }
 
-// IsConnected reports whether p and q belong to the same set.
+// Connected reports whether p and q belong to the same set.
 // It returns false if either index is out of bounds.
-func (u *QuickUnion) IsConnected(p, q int) bool {
-	rp := u.Find(p)
-	if rp == IndexOutOfRange {
-		return false
+func (u *QuickUnion) Connected(p, q int) (bool, error) {
+	rp, err := u.Find(p)
+	if err != nil {
+		return false, err
 	}
 
-	rq := u.Find(q)
-	if rq == IndexOutOfRange {
-		return false
+	rq, err := u.Find(q)
+	if err != nil {
+		return false, err
 	}
 
-	return rp == rq
+	return rp == rq, nil
 }
 
-// String returns a human-readable representation of the parents links.
-// Each non-root element is printed as "parents <- child".
+// String returns a human-readable representation of the parent links.
+// Each non-root element is printed as "parent <- child".
 func (u *QuickUnion) String() string {
 	connections := make([]string, 0)
 
-	for i, p := range u.parents {
+	for i, p := range u.parent {
 		if i != p {
 			s := fmt.Sprintf("%d <- %d", p, i)
 			connections = append(connections, s)
