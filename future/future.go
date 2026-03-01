@@ -2,8 +2,9 @@
 // enabling asynchronous computation with context-aware cancellation.
 //
 // A Future represents a value that will be available at some point in the
-// future, produced by an asynchronous operation. The caller blocks until the
-// result is ready via [Future.Await].
+// future, produced by an asynchronous operation. Multiple callers may Await
+// the same Future concurrently — all are unblocked simultaneously when the
+// result is ready, and all receive the same value and error.
 //
 // Example usage:
 //
@@ -16,42 +17,30 @@ package future
 
 import (
 	"context"
-	"errors"
-	"sync/atomic"
 	"time"
 )
 
-// ErrAwaitAlreadyCalled is returned when the Await method was already called
-// for the future
-var ErrAwaitAlreadyCalled = errors.New("await already called")
-
-// payload is the internal carrier for a computation result, bundling the
-// produced value and any error returned by the async provider.
-type payload[T any] struct {
-	val T
-	err error
-}
-
 // Future represents the result of an asynchronous computation of type T.
-// Concurrent calls to [Future.Await] are safe: the first caller receives the
-// result, subsequent callers get [ErrAwaitAlreadyCalled]. For fan-out
-// scenarios, each consumer should obtain its own Future via [AsyncWithContext].
+// Multiple concurrent calls to [Future.Await] are safe: all callers block
+// until the result is ready and then all receive the same value and error.
+// The result is cached, so calls after the computation completes return immediately.
 type Future[T any] struct {
-	ch     chan payload[T]
-	called atomic.Bool
+	done chan struct{}
+	val  T
+	err  error
 }
 
-// newFuture creates an uninitialised Future with a buffered channel of capacity 1,
-// ensuring the producer goroutine never blocks even if Await returns early.
+// newFuture creates an uninitialised Future with a signal channel that is
+// closed by resolve once the computation completes, unblocking all Await callers.
 func newFuture[T any]() *Future[T] {
 	return &Future[T]{
-		ch: make(chan payload[T], 1),
+		done: make(chan struct{}),
 	}
 }
 
-// AsyncWithContext starts provider in a new goroutine and returns a Future that will
-// hold the result once the goroutine completes. The provided context is
-// forwarded to provider, allowing the async work to respect cancellation
+// AsyncWithContext starts provider in a new goroutine and returns a Future that
+// will hold the result once the goroutine completes. The provided context is
+// forwarded to provider, allowing the async work to respect cancellation and
 // deadlines set by the caller.
 func AsyncWithContext[T any](ctx context.Context, provider func(context.Context) (T, error)) *Future[T] {
 	f := newFuture[T]()
@@ -71,47 +60,36 @@ func Async[T any](provider func() (T, error)) *Future[T] {
 	return f
 }
 
+// resolve stores the computation result and unblocks all Await callers by
+// closing the done channel. It must be called exactly once per Future.
 func (f *Future[T]) resolve(val T, err error) {
-	f.ch <- payload[T]{val, err}
-	close(f.ch)
+	f.val, f.err = val, err
+	close(f.done)
 }
 
 // Await blocks until the async computation finishes and returns its result,
 // or until ctx is cancelled — whichever happens first.
 //
-// If ctx is cancelled before the computation completes, Await returns the
-// zero value of T together with ctx.Err(). If the computation finishes first,
-// Await returns the value and error produced by the provider passed to [AsyncWithContext].
+// Multiple goroutines may call Await on the same Future concurrently. All are
+// unblocked when the result is ready and all receive the same value and error.
+//
+// If ctx is cancelled before the computation completes, Await returns the zero
+// value of T together with ctx.Err(). The Future remains live: a subsequent
+// call with a fresh context will still receive the result once it is available.
 func (f *Future[T]) Await(ctx context.Context) (T, error) {
-	var zero T
-
-	if f.called.Load() {
-		return zero, ErrAwaitAlreadyCalled
-	}
-
 	select {
-	case payload := <-f.ch:
-		f.called.Store(true)
-		return payload.val, payload.err
+	case <-f.done:
+		return f.val, f.err
 	case <-ctx.Done():
+		var zero T
 		return zero, ctx.Err()
 	}
 }
 
 // AwaitWithTimeout blocks until the async computation finishes and returns its
 // result, or until the given duration elapses — whichever happens first.
-func (f *Future[T]) AwaitWithTimeout(t time.Duration) (T, error) {
-	var zero T
-
-	if f.called.Load() {
-		return zero, ErrAwaitAlreadyCalled
-	}
-
-	select {
-	case payload := <-f.ch:
-		f.called.Store(true)
-		return payload.val, payload.err
-	case <-time.After(t):
-		return zero, context.DeadlineExceeded
-	}
+func (f *Future[T]) AwaitWithTimeout(d time.Duration) (T, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), d)
+	defer cancel()
+	return f.Await(ctx)
 }
