@@ -1,18 +1,25 @@
 package cache
 
 import (
+	"errors"
 	"sync"
 	"testing"
 )
 
+// mustNewLRUCache is a test helper that creates an LRUCache or fails the test.
+func mustNewLRUCache[K comparable, V any](t testing.TB, capacity int) *LRUCache[K, V] {
+	t.Helper()
+	c, err := NewLRUCache[K, V](capacity)
+	if err != nil {
+		t.Fatalf("NewLRUCache(%d): unexpected error: %v", capacity, err)
+	}
+	return c
+}
+
 func TestNewLRUCache(t *testing.T) {
 	// when
-	c := NewLRUCache[string, int](3)
+	c := mustNewLRUCache[string, int](t, 3)
 	// then
-	if c == nil {
-		t.Fatalf("NewLRUCache returned nil")
-	}
-
 	if c.Cap() != 3 {
 		t.Fatalf("Expected capacity 3, got %d", c.Cap())
 	}
@@ -22,9 +29,18 @@ func TestNewLRUCache(t *testing.T) {
 	}
 }
 
+func TestNewLRUCacheInvalidCapacity(t *testing.T) {
+	for _, cap := range []int{0, -1, -100} {
+		_, err := NewLRUCache[string, int](cap)
+		if !errors.Is(err, ErrInvalidCapacity) {
+			t.Fatalf("capacity %d: expected ErrInvalidCapacity, got %v", cap, err)
+		}
+	}
+}
+
 func TestLRUCachePut(t *testing.T) {
 	// given
-	c := NewLRUCache[string, int](3)
+	c := mustNewLRUCache[string, int](t, 3)
 	// when
 	c.Put("a", 1)
 	c.Put("b", 2)
@@ -36,7 +52,7 @@ func TestLRUCachePut(t *testing.T) {
 
 func TestLRUCacheGet(t *testing.T) {
 	// given
-	c := NewLRUCache[string, int](3)
+	c := mustNewLRUCache[string, int](t, 3)
 	c.Put("a", 1)
 	// when
 	got, ok := c.Get("a")
@@ -52,7 +68,7 @@ func TestLRUCacheGet(t *testing.T) {
 
 func TestLRUCacheGetMiss(t *testing.T) {
 	// given
-	c := NewLRUCache[string, int](3)
+	c := mustNewLRUCache[string, int](t, 3)
 	// when
 	got, ok := c.Get("missing")
 	// then
@@ -67,7 +83,7 @@ func TestLRUCacheGetMiss(t *testing.T) {
 
 func TestLRUCacheEvictsLRU(t *testing.T) {
 	// given: capacity 2, insert a then b
-	c := NewLRUCache[string, int](2)
+	c := mustNewLRUCache[string, int](t, 2)
 	c.Put("a", 1)
 	c.Put("b", 2)
 	// when: insert c, which triggers eviction of a (LRU)
@@ -92,7 +108,7 @@ func TestLRUCacheEvictsLRU(t *testing.T) {
 
 func TestLRUCacheGetPromotesToHead(t *testing.T) {
 	// given: capacity 2, insert a then b (a is LRU)
-	c := NewLRUCache[string, int](2)
+	c := mustNewLRUCache[string, int](t, 2)
 	c.Put("a", 1)
 	c.Put("b", 2)
 	// when: access a (promotes it), then insert c
@@ -114,7 +130,7 @@ func TestLRUCacheGetPromotesToHead(t *testing.T) {
 
 func TestLRUCachePutUpdatePromotesToHead(t *testing.T) {
 	// given: capacity 2, insert a then b (a is LRU)
-	c := NewLRUCache[string, int](2)
+	c := mustNewLRUCache[string, int](t, 2)
 	c.Put("a", 1)
 	c.Put("b", 2)
 	// when: update a (should promote it, not evict it)
@@ -137,7 +153,7 @@ func TestLRUCachePutUpdatePromotesToHead(t *testing.T) {
 
 func TestLRUCachePutUpdateDoesNotEvict(t *testing.T) {
 	// given: cache at capacity
-	c := NewLRUCache[string, int](2)
+	c := mustNewLRUCache[string, int](t, 2)
 	c.Put("a", 1)
 	c.Put("b", 2)
 	// when: update an existing key (should not trigger eviction)
@@ -155,7 +171,7 @@ func TestLRUCachePutUpdateDoesNotEvict(t *testing.T) {
 func TestLRUCacheGetHeadTwice(t *testing.T) {
 	// Regression: accessing the MRU node twice must not corrupt backward links.
 	// given: three entries, b is MRU
-	c := NewLRUCache[string, int](3)
+	c := mustNewLRUCache[string, int](t, 3)
 	c.Put("a", 1)
 	c.Put("b", 2)
 	c.Put("c", 3)
@@ -187,7 +203,7 @@ func TestLRUCacheGetHeadTwice(t *testing.T) {
 
 func TestLRUCacheCapacityOne(t *testing.T) {
 	// given
-	c := NewLRUCache[string, int](1)
+	c := mustNewLRUCache[string, int](t, 1)
 	c.Put("a", 1)
 	// when
 	c.Get("a") // access the only node (regression: must not set tail=nil)
@@ -213,7 +229,7 @@ func TestLRUCacheCapacityOne(t *testing.T) {
 
 func TestLRUCacheDelete(t *testing.T) {
 	// given
-	c := NewLRUCache[string, int](3)
+	c := mustNewLRUCache[string, int](t, 3)
 	c.Put("a", 1)
 	c.Put("b", 2)
 	// when
@@ -235,7 +251,7 @@ func TestLRUCacheDelete(t *testing.T) {
 
 func TestLRUCacheDeleteMiss(t *testing.T) {
 	// given
-	c := NewLRUCache[string, int](3)
+	c := mustNewLRUCache[string, int](t, 3)
 	c.Put("a", 1)
 	// when: delete a key that doesn't exist (should not panic or corrupt state)
 	c.Delete("missing")
@@ -251,7 +267,7 @@ func TestLRUCacheDeleteMiss(t *testing.T) {
 
 func TestLRUCacheExists(t *testing.T) {
 	// given
-	c := NewLRUCache[string, int](3)
+	c := mustNewLRUCache[string, int](t, 3)
 	c.Put("a", 1)
 	// then
 	if !c.Exists("a") {
@@ -265,7 +281,7 @@ func TestLRUCacheExists(t *testing.T) {
 
 func TestLRUCacheExistsDoesNotPromote(t *testing.T) {
 	// given: capacity 2, a is LRU
-	c := NewLRUCache[string, int](2)
+	c := mustNewLRUCache[string, int](t, 2)
 	c.Put("a", 1)
 	c.Put("b", 2)
 	// when: Exists on a (should not promote it)
@@ -280,7 +296,7 @@ func TestLRUCacheExistsDoesNotPromote(t *testing.T) {
 func TestLRUCacheConcurrentAccess(t *testing.T) {
 	// given
 	const goroutines = 100
-	c := NewLRUCache[int, int](50)
+	c := mustNewLRUCache[int, int](t, 50)
 	var wg sync.WaitGroup
 	// when: concurrent puts and gets
 	for i := range goroutines {

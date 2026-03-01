@@ -1,7 +1,10 @@
 // Package cache provides in-memory caching implementations.
 package cache
 
-import "sync"
+import (
+	"errors"
+	"sync"
+)
 
 type node[K comparable, V any] struct {
 	key   K
@@ -23,12 +26,18 @@ type LRUCache[K comparable, V any] struct {
 	tail     *node[K, V]
 }
 
+var ErrInvalidCapacity = errors.New("capacity must be greater than zero")
+
 // NewLRUCache creates a new LRUCache with the given capacity.
-func NewLRUCache[K comparable, V any](capacity int) *LRUCache[K, V] {
+func NewLRUCache[K comparable, V any](capacity int) (*LRUCache[K, V], error) {
+	if capacity <= 0 {
+		return nil, ErrInvalidCapacity
+	}
+
 	return &LRUCache[K, V]{
 		capacity: capacity,
 		cache:    make(map[K]*node[K, V]),
-	}
+	}, nil
 }
 
 // Get retrieves the value for key and marks it as most recently used.

@@ -208,10 +208,11 @@ func TestAwaitWithTimeout_Timeout(t *testing.T) {
 }
 
 func TestMultipleConsumers(t *testing.T) {
+	const want = "done"
 	// given
 	f := Async(func() (string, error) {
 		time.Sleep(20 * time.Millisecond)
-		return "done", nil
+		return want, nil
 	})
 	// when
 	r1, err1 := f.Await(t.Context())
@@ -225,7 +226,7 @@ func TestMultipleConsumers(t *testing.T) {
 		t.Fatalf("second Await: unexpected error %v", err2)
 	}
 
-	if r1 != "done" || r2 != "done" {
-		t.Fatalf("expected 'done'/'done', got '%s'/'%s'", r1, r2)
+	if r1 != want || r2 != want {
+		t.Fatalf("expected '%s'/'%s', got '%s'/'%s'", want, want, r1, r2)
 	}
 }
