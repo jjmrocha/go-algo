@@ -2,6 +2,7 @@ package functional
 
 import (
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -35,11 +36,7 @@ func TestZip(t *testing.T) {
 func TestZip_TypeCombine(t *testing.T) {
 	// int + string → string
 	got := Zip([]int{1, 2, 3}, []string{"a", "b", "c"}, func(n int, s string) string {
-		result := ""
-		for range n {
-			result += s
-		}
-		return result
+		return strings.Repeat(s, n)
 	})
 	expect := []string{"a", "bb", "ccc"}
 	if !slices.Equal(got, expect) {
