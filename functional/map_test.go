@@ -65,3 +65,35 @@ func TestMap_PreservesOrder(t *testing.T) {
 		t.Errorf("Map order = %v, want %v", got, expect)
 	}
 }
+
+func TestMapSeq(t *testing.T) {
+	double := func(v int) int { return v * 2 }
+
+	tests := []struct {
+		name   string
+		input  []int
+		expect []int
+	}{
+		{name: "empty seq", input: []int{}, expect: []int{}},
+		{name: "single element", input: []int{3}, expect: []int{6}},
+		{name: "multiple elements", input: []int{1, 2, 3}, expect: []int{2, 4, 6}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := slices.Collect(MapSeq(slices.Values(tt.input), double))
+			if !slices.Equal(got, tt.expect) {
+				t.Errorf("MapSeq(%v) = %v, want %v", tt.input, got, tt.expect)
+			}
+		})
+	}
+}
+
+func TestMapSeq_TypeTransform(t *testing.T) {
+	// int → bool: verifies the output type differs from the input type
+	got := slices.Collect(MapSeq(slices.Values([]int{1, 2, 3, 4}), func(v int) bool { return v%2 == 0 }))
+	expect := []bool{false, true, false, true}
+	if !slices.Equal(got, expect) {
+		t.Errorf("MapSeq type transform = %v, want %v", got, expect)
+	}
+}

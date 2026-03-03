@@ -1,6 +1,9 @@
 package functional
 
-import "testing"
+import (
+	"slices"
+	"testing"
+)
 
 func TestAny(t *testing.T) {
 	isEven := func(v int) bool { return v%2 == 0 }
@@ -24,6 +27,33 @@ func TestAny(t *testing.T) {
 			got := Any(tt.input, isEven)
 			if got != tt.expect {
 				t.Errorf("Any(%v) = %v, want %v", tt.input, got, tt.expect)
+			}
+		})
+	}
+}
+
+func TestAnySeq(t *testing.T) {
+	isEven := func(v int) bool { return v%2 == 0 }
+
+	tests := []struct {
+		name   string
+		input  []int
+		expect bool
+	}{
+		{name: "empty seq", input: []int{}, expect: false},
+		{name: "no match", input: []int{1, 3, 5}, expect: false},
+		{name: "first matches", input: []int{2, 3, 5}, expect: true},
+		{name: "last matches", input: []int{1, 3, 4}, expect: true},
+		{name: "all match", input: []int{2, 4, 6}, expect: true},
+		{name: "single match", input: []int{2}, expect: true},
+		{name: "single no match", input: []int{1}, expect: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := AnySeq(slices.Values(tt.input), isEven)
+			if got != tt.expect {
+				t.Errorf("AnySeq(%v) = %v, want %v", tt.input, got, tt.expect)
 			}
 		})
 	}

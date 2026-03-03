@@ -1,6 +1,9 @@
 package functional
 
-import "testing"
+import (
+	"slices"
+	"testing"
+)
 
 func TestFold(t *testing.T) {
 	add := func(acc, v int) int { return acc + v }
@@ -41,5 +44,38 @@ func TestFold_StringConcat(t *testing.T) {
 	got := Fold([]string{"b", "c", "d"}, "a", func(acc, v string) string { return acc + v })
 	if got != "abcd" {
 		t.Errorf("Fold string concat = %q, want %q", got, "abcd")
+	}
+}
+
+func TestFoldSeq(t *testing.T) {
+	add := func(acc, v int) int { return acc + v }
+
+	tests := []struct {
+		name    string
+		input   []int
+		initial int
+		expect  int
+	}{
+		{name: "empty seq returns initial", input: []int{}, initial: 42, expect: 42},
+		{name: "sum", input: []int{1, 2, 3, 4, 5}, initial: 0, expect: 15},
+		{name: "non-zero initial", input: []int{1, 2, 3}, initial: 10, expect: 16},
+		{name: "single element", input: []int{7}, initial: 0, expect: 7},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := FoldSeq(slices.Values(tt.input), tt.initial, add)
+			if got != tt.expect {
+				t.Errorf("FoldSeq(%v, %d) = %v, want %v", tt.input, tt.initial, got, tt.expect)
+			}
+		})
+	}
+}
+
+func TestFoldSeq_LeftOrder(t *testing.T) {
+	// subtraction is non-associative: ((10-1)-2)-3 = 4
+	got := FoldSeq(slices.Values([]int{1, 2, 3}), 10, func(acc, v int) int { return acc - v })
+	if got != 4 {
+		t.Errorf("FoldSeq left order: got %d, want 4", got)
 	}
 }

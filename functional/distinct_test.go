@@ -38,3 +38,44 @@ func TestDistinct_PreservesFirstOccurrence(t *testing.T) {
 		t.Errorf("Distinct order = %v, want %v", got, expect)
 	}
 }
+
+func TestDistinctSeq(t *testing.T) {
+	tests := []struct {
+		name   string
+		input  []int
+		expect []int
+	}{
+		{name: "empty", input: []int{}, expect: []int{}},
+		{name: "no duplicates", input: []int{1, 2, 3}, expect: []int{1, 2, 3}},
+		{name: "all duplicates", input: []int{7, 7, 7}, expect: []int{7}},
+		{name: "mixed", input: []int{1, 2, 1, 3, 2, 4}, expect: []int{1, 2, 3, 4}},
+		{name: "single element", input: []int{5}, expect: []int{5}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := slices.Collect(DistinctSeq(slices.Values(tt.input)))
+			if !slices.Equal(got, tt.expect) {
+				t.Errorf("DistinctSeq(%v) = %v, want %v", tt.input, got, tt.expect)
+			}
+		})
+	}
+}
+
+// TestDistinctSeq_MultipleIterations verifies that each iteration starts with
+// a fresh seen set — state must not leak across iterations.
+func TestDistinctSeq_MultipleIterations(t *testing.T) {
+	input := []int{1, 2, 1, 3}
+	seq := DistinctSeq(slices.Values(input))
+
+	first := slices.Collect(seq)
+	second := slices.Collect(seq)
+
+	expect := []int{1, 2, 3}
+	if !slices.Equal(first, expect) {
+		t.Errorf("first iteration = %v, want %v", first, expect)
+	}
+	if !slices.Equal(second, expect) {
+		t.Errorf("second iteration = %v, want %v (state leaked across iterations)", second, expect)
+	}
+}
