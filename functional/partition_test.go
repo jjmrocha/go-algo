@@ -1,8 +1,9 @@
 package functional
 
 import (
-	"slices"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestPartition(t *testing.T) {
@@ -24,13 +25,13 @@ func TestPartition(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			match, rest := Partition(tt.input, isEven)
-			if !slices.Equal(match, tt.expectedMatch) {
-				t.Errorf("Partition matching: got %v, want %v", match, tt.expectedMatch)
-			}
-			if !slices.Equal(rest, tt.expectedRest) {
-				t.Errorf("Partition non-matching: got %v, want %v", rest, tt.expectedRest)
-			}
+			// given
+			input := tt.input
+			// when
+			match, rest := Partition(input, isEven)
+			// then
+			assert.Equal(t, tt.expectedMatch, match)
+			assert.Equal(t, tt.expectedRest, rest)
 		})
 	}
 
@@ -40,11 +41,7 @@ func TestPartition(t *testing.T) {
 		// when
 		match, rest := Partition(input, func(v int) bool { return v > 3 })
 		// then
-		if !slices.Equal(match, []int{5, 8, 4}) {
-			t.Errorf("Partition match order = %v, want [5 8 4]", match)
-		}
-		if !slices.Equal(rest, []int{2, 1}) {
-			t.Errorf("Partition rest order = %v, want [2 1]", rest)
-		}
+		assert.Equal(t, []int{5, 8, 4}, match)
+		assert.Equal(t, []int{2, 1}, rest)
 	})
 }

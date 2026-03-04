@@ -1,13 +1,15 @@
 package union
 
 import (
-	"errors"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func mustUnion(t *testing.T, u *QuickUnion, p, q int) {
 	t.Helper()
-	if err := u.Union(p, q); err != nil {
+	err := u.Union(p, q)
+	if err != nil {
 		t.Fatalf("setup Union(%d, %d) failed: %v", p, q, err)
 	}
 }
@@ -17,9 +19,7 @@ func TestNew(t *testing.T) {
 		// when
 		result := New(5)
 		// then
-		if result.Len() != 5 {
-			t.Fatalf("Expected 5 sets, got %d", result.Len())
-		}
+		assert.Equal(t, 5, result.Len())
 	})
 
 	t.Run("each node is its own root", func(t *testing.T) {
@@ -28,12 +28,8 @@ func TestNew(t *testing.T) {
 		// then
 		for i := range 4 {
 			root, err := result.Find(i)
-			if err != nil {
-				t.Fatalf("Find(%d) returned unexpected error: %v", i, err)
-			}
-			if root != i {
-				t.Fatalf("Expected node %d to be its own root, got %d", i, root)
-			}
+			assert.NoError(t, err)
+			assert.Equal(t, i, root)
 		}
 	})
 }
@@ -45,9 +41,7 @@ func TestFind(t *testing.T) {
 		// when
 		_, result := u.Find(-1)
 		// then
-		if !errors.Is(result, ErrIndexOutOfRange) {
-			t.Fatalf("Find(-1) error = %v; want ErrIndexOutOfRange", result)
-		}
+		assert.ErrorIs(t, result, ErrIndexOutOfRange)
 	})
 
 	t.Run("out of range high", func(t *testing.T) {
@@ -56,9 +50,7 @@ func TestFind(t *testing.T) {
 		// when
 		_, result := u.Find(3)
 		// then
-		if !errors.Is(result, ErrIndexOutOfRange) {
-			t.Fatalf("Find(3) error = %v; want ErrIndexOutOfRange", result)
-		}
+		assert.ErrorIs(t, result, ErrIndexOutOfRange)
 	})
 
 	t.Run("returns root after union", func(t *testing.T) {
@@ -69,9 +61,7 @@ func TestFind(t *testing.T) {
 		root0, _ := u.Find(0)
 		root1, _ := u.Find(1)
 		// then
-		if root0 != root1 {
-			t.Fatalf("Expected same root after Union(0,1), got %d and %d", root0, root1)
-		}
+		assert.Equal(t, root0, root1)
 	})
 }
 
@@ -82,9 +72,7 @@ func TestUnion(t *testing.T) {
 		// when
 		result := u.Union(0, 1)
 		// then
-		if result != nil {
-			t.Fatalf("Union(0,1) = %v; want nil", result)
-		}
+		assert.NoError(t, result)
 	})
 
 	t.Run("succeeds when already connected", func(t *testing.T) {
@@ -94,9 +82,7 @@ func TestUnion(t *testing.T) {
 		// when
 		result := u.Union(0, 1)
 		// then
-		if result != nil {
-			t.Fatalf("Union(0,1) second call = %v; want nil", result)
-		}
+		assert.NoError(t, result)
 	})
 
 	t.Run("errors for low out of range", func(t *testing.T) {
@@ -105,9 +91,7 @@ func TestUnion(t *testing.T) {
 		// when
 		result := u.Union(-1, 0)
 		// then
-		if result == nil {
-			t.Fatalf("Union(-1,0) = nil; want ErrIndexOutOfRange")
-		}
+		assert.ErrorIs(t, result, ErrIndexOutOfRange)
 	})
 
 	t.Run("errors for high out of range", func(t *testing.T) {
@@ -116,9 +100,7 @@ func TestUnion(t *testing.T) {
 		// when
 		result := u.Union(0, 10)
 		// then
-		if result == nil {
-			t.Fatalf("Union(0,10) = nil; want ErrIndexOutOfRange")
-		}
+		assert.ErrorIs(t, result, ErrIndexOutOfRange)
 	})
 
 	t.Run("decreases set count", func(t *testing.T) {
@@ -127,9 +109,7 @@ func TestUnion(t *testing.T) {
 		// when
 		mustUnion(t, u, 0, 1)
 		// then
-		if u.Len() != 2 {
-			t.Fatalf("Expected 2 sets after one union, got %d", u.Len())
-		}
+		assert.Equal(t, 2, u.Len())
 	})
 }
 
@@ -140,9 +120,7 @@ func TestConnected(t *testing.T) {
 		// when
 		result, _ := u.Connected(0, 1)
 		// then
-		if result {
-			t.Fatalf("Expected 0 and 1 to be disconnected in a fresh QuickUnion")
-		}
+		assert.False(t, result)
 	})
 
 	t.Run("true after union", func(t *testing.T) {
@@ -152,9 +130,7 @@ func TestConnected(t *testing.T) {
 		// when
 		result, _ := u.Connected(0, 1)
 		// then
-		if !result {
-			t.Fatalf("Expected 0 and 1 to be connected after Union(0,1)")
-		}
+		assert.True(t, result)
 	})
 
 	t.Run("transitivity", func(t *testing.T) {
@@ -165,9 +141,7 @@ func TestConnected(t *testing.T) {
 		// when
 		result, _ := u.Connected(0, 2)
 		// then
-		if !result {
-			t.Fatalf("Expected 0 and 2 to be connected via transitivity")
-		}
+		assert.True(t, result)
 	})
 
 	t.Run("false for low out of range", func(t *testing.T) {
@@ -176,9 +150,7 @@ func TestConnected(t *testing.T) {
 		// when
 		result, _ := u.Connected(-1, 0)
 		// then
-		if result {
-			t.Fatalf("Connected(-1,0) = true; want false")
-		}
+		assert.False(t, result)
 	})
 
 	t.Run("false for high out of range", func(t *testing.T) {
@@ -187,9 +159,7 @@ func TestConnected(t *testing.T) {
 		// when
 		result, _ := u.Connected(0, 10)
 		// then
-		if result {
-			t.Fatalf("Connected(0,10) = true; want false")
-		}
+		assert.False(t, result)
 	})
 }
 
@@ -200,9 +170,7 @@ func TestString(t *testing.T) {
 		// when
 		result := u.String()
 		// then
-		if result != "" {
-			t.Fatalf("Expected empty string, got %q", result)
-		}
+		assert.Empty(t, result)
 	})
 
 	t.Run("flat tree", func(t *testing.T) {
@@ -214,9 +182,7 @@ func TestString(t *testing.T) {
 		result := u.String()
 		// then
 		expected := "0 <- 1\n0 <- 2"
-		if result != expected {
-			t.Fatalf("Expected:\n%q\ngot:\n%q", expected, result)
-		}
+		assert.Equal(t, expected, result)
 	})
 
 	t.Run("nested tree", func(t *testing.T) {
@@ -229,9 +195,7 @@ func TestString(t *testing.T) {
 		result := u.String()
 		// then
 		expected := "0 <- 1\n0 <- 2\n2 <- 3"
-		if result != expected {
-			t.Fatalf("Expected:\n%q\ngot:\n%q", expected, result)
-		}
+		assert.Equal(t, expected, result)
 	})
 
 	t.Run("two separate trees", func(t *testing.T) {
@@ -244,8 +208,6 @@ func TestString(t *testing.T) {
 		result := u.String()
 		// then
 		expected := "0 <- 1\n0 <- 2\n3 <- 4"
-		if result != expected {
-			t.Fatalf("Expected:\n%q\ngot:\n%q", expected, result)
-		}
+		assert.Equal(t, expected, result)
 	})
 }

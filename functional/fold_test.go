@@ -3,6 +3,8 @@ package functional
 import (
 	"slices"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestFold(t *testing.T) {
@@ -23,10 +25,13 @@ func TestFold(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := Fold(tt.input, tt.initial, add)
-			if got != tt.expected {
-				t.Errorf("Fold(%v, %d) = %d, want %d", tt.input, tt.initial, got, tt.expected)
-			}
+			// given
+			input := tt.input
+			initial := tt.initial
+			// when
+			result := Fold(input, initial, add)
+			// then
+			assert.Equal(t, tt.expected, result)
 		})
 	}
 
@@ -37,9 +42,7 @@ func TestFold(t *testing.T) {
 		// when: ((10 - 1) - 2) - 3 = 4
 		result := Fold(input, 10, func(acc, v int) int { return acc - v })
 		// then
-		if result != 4 {
-			t.Errorf("Fold left order = %d, want 4", result)
-		}
+		assert.Equal(t, 4, result)
 	})
 
 	t.Run("string concat", func(t *testing.T) {
@@ -48,9 +51,7 @@ func TestFold(t *testing.T) {
 		// when
 		result := Fold(input, "a", func(acc, v string) string { return acc + v })
 		// then
-		if result != "abcd" {
-			t.Errorf("Fold string concat = %q, want %q", result, "abcd")
-		}
+		assert.Equal(t, "abcd", result)
 	})
 }
 
@@ -71,10 +72,13 @@ func TestFoldSeq(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := FoldSeq(slices.Values(tt.input), tt.initial, add)
-			if got != tt.expected {
-				t.Errorf("FoldSeq(%v, %d) = %v, want %v", tt.input, tt.initial, got, tt.expected)
-			}
+			// given
+			input := tt.input
+			initial := tt.initial
+			// when
+			result := FoldSeq(slices.Values(input), initial, add)
+			// then
+			assert.Equal(t, tt.expected, result)
 		})
 	}
 
@@ -85,8 +89,6 @@ func TestFoldSeq(t *testing.T) {
 		// when: ((10-1)-2)-3 = 4
 		result := FoldSeq(slices.Values(input), 10, func(acc, v int) int { return acc - v })
 		// then
-		if result != 4 {
-			t.Errorf("FoldSeq left order: got %d, want 4", result)
-		}
+		assert.Equal(t, 4, result)
 	})
 }

@@ -36,7 +36,7 @@ func (c *computations[K, V]) compute(
 		return f
 	}
 
-	fun := func() (V, error) {
+	fn := func() (V, error) {
 		v, err := provider()
 
 		c.mu.Lock()
@@ -46,7 +46,7 @@ func (c *computations[K, V]) compute(
 		return v, err
 	}
 
-	f := future.Async(fun)
+	f := future.Async(fn)
 
 	c.cache[key] = f
 

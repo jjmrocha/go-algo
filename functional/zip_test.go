@@ -1,9 +1,10 @@
 package functional
 
 import (
-	"slices"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestZip(t *testing.T) {
@@ -25,10 +26,13 @@ func TestZip(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := Zip(tt.a, tt.b, add)
-			if !slices.Equal(got, tt.expected) {
-				t.Errorf("Zip(%v, %v) = %v, want %v", tt.a, tt.b, got, tt.expected)
-			}
+			// given
+			a := tt.a
+			b := tt.b
+			// when
+			result := Zip(a, b, add)
+			// then
+			assert.Equal(t, tt.expected, result)
 		})
 	}
 
@@ -42,8 +46,6 @@ func TestZip(t *testing.T) {
 		})
 		// then
 		expected := []string{"a", "bb", "ccc"}
-		if !slices.Equal(result, expected) {
-			t.Errorf("Zip type combine = %v, want %v", result, expected)
-		}
+		assert.Equal(t, expected, result)
 	})
 }

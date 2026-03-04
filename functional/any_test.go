@@ -3,6 +3,8 @@ package functional
 import (
 	"slices"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestAny(t *testing.T) {
@@ -24,10 +26,12 @@ func TestAny(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := Any(tt.input, isEven)
-			if got != tt.expected {
-				t.Errorf("Any(%v) = %v, want %v", tt.input, got, tt.expected)
-			}
+			// given
+			input := tt.input
+			// when
+			result := Any(input, isEven)
+			// then
+			assert.Equal(t, tt.expected, result)
 		})
 	}
 }
@@ -51,10 +55,12 @@ func TestAnySeq(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := AnySeq(slices.Values(tt.input), isEven)
-			if got != tt.expected {
-				t.Errorf("AnySeq(%v) = %v, want %v", tt.input, got, tt.expected)
-			}
+			// given
+			input := tt.input
+			// when
+			result := AnySeq(slices.Values(input), isEven)
+			// then
+			assert.Equal(t, tt.expected, result)
 		})
 	}
 }

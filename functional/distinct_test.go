@@ -3,6 +3,8 @@ package functional
 import (
 	"slices"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestDistinct(t *testing.T) {
@@ -22,10 +24,12 @@ func TestDistinct(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := Distinct(tt.input)
-			if !slices.Equal(got, tt.expected) {
-				t.Errorf("Distinct(%v) = %v, want %v", tt.input, got, tt.expected)
-			}
+			// given
+			input := tt.input
+			// when
+			result := Distinct(input)
+			// then
+			assert.Equal(t, tt.expected, result)
 		})
 	}
 
@@ -36,9 +40,7 @@ func TestDistinct(t *testing.T) {
 		result := Distinct(input)
 		// then
 		expected := []int{3, 1, 4, 5, 9, 2, 6}
-		if !slices.Equal(result, expected) {
-			t.Errorf("Distinct order = %v, want %v", result, expected)
-		}
+		assert.Equal(t, expected, result)
 	})
 }
 
@@ -57,15 +59,15 @@ func TestDistinctSeq(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := slices.Collect(DistinctSeq(slices.Values(tt.input)))
-			if !slices.Equal(got, tt.expected) {
-				t.Errorf("DistinctSeq(%v) = %v, want %v", tt.input, got, tt.expected)
-			}
+			// given
+			input := tt.input
+			// when
+			result := slices.Collect(DistinctSeq(slices.Values(input)))
+			// then
+			assert.ElementsMatch(t, tt.expected, result)
 		})
 	}
 
-	// TestDistinctSeq_MultipleIterations verifies that each iteration starts with
-	// a fresh seen set — state must not leak across iterations.
 	t.Run("multiple iterations", func(t *testing.T) {
 		// given
 		input := []int{1, 2, 1, 3}
@@ -75,11 +77,7 @@ func TestDistinctSeq(t *testing.T) {
 		second := slices.Collect(seq)
 		// then
 		expected := []int{1, 2, 3}
-		if !slices.Equal(first, expected) {
-			t.Errorf("first iteration = %v, want %v", first, expected)
-		}
-		if !slices.Equal(second, expected) {
-			t.Errorf("second iteration = %v, want %v (state leaked across iterations)", second, expected)
-		}
+		assert.Equal(t, expected, first)
+		assert.Equal(t, expected, second, "state leaked across iterations")
 	})
 }

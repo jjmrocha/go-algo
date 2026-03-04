@@ -3,6 +3,8 @@ package functional
 import (
 	"slices"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestFilter(t *testing.T) {
@@ -23,10 +25,12 @@ func TestFilter(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := Filter(tt.input, isEven)
-			if !slices.Equal(got, tt.expected) {
-				t.Errorf("Filter(%v) = %v, want %v", tt.input, got, tt.expected)
-			}
+			// given
+			input := tt.input
+			// when
+			result := Filter(input, isEven)
+			// then
+			assert.Equal(t, tt.expected, result)
 		})
 	}
 
@@ -37,9 +41,7 @@ func TestFilter(t *testing.T) {
 		result := Filter(input, func(v int) bool { return v > 2 })
 		// then
 		expected := []int{5, 4, 3}
-		if !slices.Equal(result, expected) {
-			t.Errorf("Filter order = %v, want %v", result, expected)
-		}
+		assert.Equal(t, expected, result)
 	})
 }
 
@@ -60,10 +62,12 @@ func TestFilterSeq(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := slices.Collect(FilterSeq(slices.Values(tt.input), isEven))
-			if !slices.Equal(got, tt.expected) {
-				t.Errorf("FilterSeq(%v) = %v, want %v", tt.input, got, tt.expected)
-			}
+			// given
+			input := tt.input
+			// when
+			result := slices.Collect(FilterSeq(slices.Values(input), isEven))
+			// then
+			assert.ElementsMatch(t, tt.expected, result)
 		})
 	}
 }

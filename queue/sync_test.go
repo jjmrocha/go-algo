@@ -3,23 +3,17 @@ package queue
 import (
 	"sync"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestNewSyncQueue(t *testing.T) {
 	// when
 	result := NewSyncQueue[int]()
 	// then
-	if result == nil {
-		t.Fatalf("NewSyncQueue returned nil")
-	}
-
-	if result.Len() != 0 {
-		t.Fatalf("Expected size 0, got %d", result.Len())
-	}
-
-	if !result.Empty() {
-		t.Fatalf("Expected empty sync queue")
-	}
+	assert.NotNil(t, result)
+	assert.Equal(t, int64(0), result.Len())
+	assert.True(t, result.Empty())
 }
 
 func TestSyncQueueEnqueueDequeue(t *testing.T) {
@@ -31,12 +25,8 @@ func TestSyncQueueEnqueueDequeue(t *testing.T) {
 	// when / then — FIFO order must be preserved
 	for _, expected := range []int{1, 2, 3} {
 		result, ok := q.Dequeue()
-		if !ok {
-			t.Fatalf("Dequeue returned false, expected true")
-		}
-		if result != expected {
-			t.Fatalf("Expected %d, got %d", expected, result)
-		}
+		assert.True(t, ok)
+		assert.Equal(t, expected, result)
 	}
 }
 
@@ -46,13 +36,8 @@ func TestSyncQueueDequeueEmpty(t *testing.T) {
 	// when
 	result, ok := q.Dequeue()
 	// then
-	if ok {
-		t.Fatalf("Dequeue on empty SyncQueue should return false")
-	}
-
-	if result != 0 {
-		t.Fatalf("Dequeue on empty SyncQueue should return zero value, got %d", result)
-	}
+	assert.False(t, ok)
+	assert.Equal(t, 0, result)
 }
 
 func TestSyncQueueConcurrentEnqueue(t *testing.T) {
@@ -70,9 +55,7 @@ func TestSyncQueueConcurrentEnqueue(t *testing.T) {
 	}
 	wg.Wait()
 	// then
-	if q.Len() != goroutines {
-		t.Fatalf("Expected %d elements, got %d", goroutines, q.Len())
-	}
+	assert.Equal(t, int64(goroutines), q.Len())
 }
 
 func TestSyncQueueConcurrentEnqueueDequeue(t *testing.T) {
@@ -95,7 +78,5 @@ func TestSyncQueueConcurrentEnqueueDequeue(t *testing.T) {
 	wg.Wait()
 	// then — no panic means the data race detector would catch any issues;
 	// the exact count depends on scheduling, but must be non-negative.
-	if q.Len() < 0 {
-		t.Fatalf("Unexpected negative length: %d", q.Len())
-	}
+	assert.GreaterOrEqual(t, q.Len(), int64(0))
 }

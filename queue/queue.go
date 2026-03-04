@@ -22,16 +22,16 @@ func New[T any]() *Queue[T] {
 
 // Enqueue adds data to the back of the queue.
 func (q *Queue[T]) Enqueue(data T) {
-	node := &node[T]{
+	n := &node[T]{
 		data: data,
 	}
 
 	if q.size == 0 {
-		q.first = node
-		q.last = node
+		q.first = n
+		q.last = n
 	} else {
-		q.last.next = node
-		q.last = node
+		q.last.next = n
+		q.last = n
 	}
 
 	q.size++

@@ -26,6 +26,8 @@ type LRUCache[K comparable, V any] struct {
 	tail     *node[K, V]
 }
 
+// ErrInvalidCapacity is returned by NewLRUCache and NewLRUWithProvider when
+// the given capacity is less than or equal to zero.
 var ErrInvalidCapacity = errors.New("capacity must be greater than zero")
 
 // NewLRUCache creates a new LRUCache with the given capacity.

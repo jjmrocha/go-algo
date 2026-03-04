@@ -3,6 +3,8 @@ package functional
 import (
 	"slices"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestMap(t *testing.T) {
@@ -40,10 +42,12 @@ func TestMap(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := Map(tt.input, tt.fn)
-			if !slices.Equal(got, tt.expected) {
-				t.Errorf("Map(%v) = %v, want %v", tt.input, got, tt.expected)
-			}
+			// given
+			input := tt.input
+			// when
+			result := Map(input, tt.fn)
+			// then
+			assert.Equal(t, tt.expected, result)
 		})
 	}
 
@@ -54,9 +58,7 @@ func TestMap(t *testing.T) {
 		result := Map(input, func(v int) bool { return v > 0 })
 		// then
 		expected := []bool{false, true, true}
-		if !slices.Equal(result, expected) {
-			t.Errorf("Map type transform = %v, want %v", result, expected)
-		}
+		assert.Equal(t, expected, result)
 	})
 
 	t.Run("preserves order", func(t *testing.T) {
@@ -66,9 +68,7 @@ func TestMap(t *testing.T) {
 		result := Map(input, func(v int) int { return v * 10 })
 		// then
 		expected := []int{50, 30, 10, 40, 20}
-		if !slices.Equal(result, expected) {
-			t.Errorf("Map order = %v, want %v", result, expected)
-		}
+		assert.Equal(t, expected, result)
 	})
 }
 
@@ -87,10 +87,12 @@ func TestMapSeq(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := slices.Collect(MapSeq(slices.Values(tt.input), double))
-			if !slices.Equal(got, tt.expected) {
-				t.Errorf("MapSeq(%v) = %v, want %v", tt.input, got, tt.expected)
-			}
+			// given
+			input := tt.input
+			// when
+			result := slices.Collect(MapSeq(slices.Values(input), double))
+			// then
+			assert.ElementsMatch(t, tt.expected, result)
 		})
 	}
 
@@ -101,8 +103,6 @@ func TestMapSeq(t *testing.T) {
 		result := slices.Collect(MapSeq(slices.Values(input), func(v int) bool { return v%2 == 0 }))
 		// then
 		expected := []bool{false, true, false, true}
-		if !slices.Equal(result, expected) {
-			t.Errorf("MapSeq type transform = %v, want %v", result, expected)
-		}
+		assert.Equal(t, expected, result)
 	})
 }

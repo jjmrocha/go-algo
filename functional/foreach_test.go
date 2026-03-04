@@ -3,6 +3,8 @@ package functional
 import (
 	"slices"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestForEach(t *testing.T) {
@@ -13,9 +15,7 @@ func TestForEach(t *testing.T) {
 		ForEach([]int{1, 2, 3}, func(v int) { collected = append(collected, v) })
 		// then
 		expected := []int{1, 2, 3}
-		if !slices.Equal(collected, expected) {
-			t.Fatalf("ForEach order: got %v, want %v", collected, expected)
-		}
+		assert.Equal(t, expected, collected)
 	})
 
 	t.Run("nil input — fn never called", func(t *testing.T) {
@@ -24,9 +24,7 @@ func TestForEach(t *testing.T) {
 		// when
 		ForEach([]int(nil), func(_ int) { called = true })
 		// then
-		if called {
-			t.Error("ForEach on nil input should not call fn")
-		}
+		assert.False(t, called)
 	})
 
 	t.Run("empty input — fn never called", func(t *testing.T) {
@@ -35,9 +33,7 @@ func TestForEach(t *testing.T) {
 		// when
 		ForEach([]int{}, func(_ int) { called = true })
 		// then
-		if called {
-			t.Error("ForEach on empty input should not call fn")
-		}
+		assert.False(t, called)
 	})
 }
 
@@ -49,9 +45,7 @@ func TestForEachSeq(t *testing.T) {
 		// when
 		ForEachSeq(slices.Values(input), func(v int) { collected = append(collected, v) })
 		// then
-		if !slices.Equal(collected, input) {
-			t.Errorf("ForEachSeq = %v, want %v", collected, input)
-		}
+		assert.Equal(t, input, collected)
 	})
 
 	t.Run("empty seq — fn never called", func(t *testing.T) {
@@ -60,8 +54,6 @@ func TestForEachSeq(t *testing.T) {
 		// when
 		ForEachSeq(slices.Values([]int{}), func(_ int) { called = true })
 		// then
-		if called {
-			t.Error("ForEachSeq called fn on empty seq")
-		}
+		assert.False(t, called)
 	})
 }

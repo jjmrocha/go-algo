@@ -6,6 +6,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func asyncFuncMaker[T any](value T, err error) func(context.Context) (T, error) {
@@ -21,53 +23,47 @@ func TestAsyncWithWait(t *testing.T) {
 	testError := errors.New("test error")
 
 	tests := []struct {
-		name        string
-		value       any
-		error       error
-		expectValue any
-		expectError error
+		name          string
+		value         any
+		error         error
+		expectedValue any
+		expectedError error
 	}{
 		{
-			name:        "success - int",
-			value:       1,
-			error:       nil,
-			expectValue: 1,
-			expectError: nil,
+			name:          "success - int",
+			value:         1,
+			error:         nil,
+			expectedValue: 1,
+			expectedError: nil,
 		},
 		{
-			name:        "success - string",
-			value:       "hello",
-			error:       nil,
-			expectValue: "hello",
-			expectError: nil,
+			name:          "success - string",
+			value:         "hello",
+			error:         nil,
+			expectedValue: "hello",
+			expectedError: nil,
 		},
 		{
-			name:        "success - error",
-			value:       nil,
-			error:       testError,
-			expectValue: nil,
-			expectError: testError,
+			name:          "success - error",
+			value:         nil,
+			error:         testError,
+			expectedValue: nil,
+			expectedError: testError,
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// given
+			f := AsyncWithContext(ctx, asyncFuncMaker(tt.value, tt.error))
 			// when
-			result, err := AsyncWithContext(ctx, asyncFuncMaker(test.value, test.error)).
-				Await(ctx)
+			result, err := f.Await(ctx)
 			// then
-			if test.expectError != nil {
-				if !errors.Is(err, test.expectError) {
-					t.Errorf("expect error %v, got %v", test.expectError, err)
-				}
+			if tt.expectedError != nil {
+				assert.ErrorIs(t, err, tt.expectedError)
 			} else {
-				if err != nil {
-					t.Errorf("expect no error, got %v", err)
-				}
-
-				if test.expectValue != result {
-					t.Errorf("expected %v, got %v", test.expectValue, result)
-				}
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expectedValue, result)
 			}
 		})
 	}
@@ -81,9 +77,7 @@ func TestAsyncWithTimeout(t *testing.T) {
 	_, result := AsyncWithContext(ctx, asyncFuncMaker(1, nil)).
 		Await(ctx)
 	// then
-	if !errors.Is(result, context.DeadlineExceeded) {
-		t.Errorf("expected DeadlineExceeded, got %v", result)
-	}
+	assert.ErrorIs(t, result, context.DeadlineExceeded)
 }
 
 func TestAsyncWithCancel(t *testing.T) {
@@ -94,9 +88,7 @@ func TestAsyncWithCancel(t *testing.T) {
 	_, result := AsyncWithContext(ctx, asyncFuncMaker(1, nil)).
 		Await(ctx)
 	// then
-	if !errors.Is(result, context.Canceled) {
-		t.Errorf("expected Canceled, got %v", result)
-	}
+	assert.ErrorIs(t, result, context.Canceled)
 }
 
 func TestAwaitCanBeCalledMultipleTimes(t *testing.T) {
@@ -107,17 +99,10 @@ func TestAwaitCanBeCalledMultipleTimes(t *testing.T) {
 	result1, err1 := f.Await(ctx)
 	result2, err2 := f.Await(ctx)
 	// then: both calls return the same result
-	if err1 != nil {
-		t.Fatalf("first Await: unexpected error %v", err1)
-	}
-
-	if err2 != nil {
-		t.Fatalf("second Await: unexpected error %v", err2)
-	}
-
-	if result1 != 42 || result2 != 42 {
-		t.Fatalf("expected 42/42, got %d/%d", result1, result2)
-	}
+	assert.NoError(t, err1)
+	assert.NoError(t, err2)
+	assert.Equal(t, 42, result1)
+	assert.Equal(t, 42, result2)
 }
 
 func TestAwaitContextCancelledThenRetried(t *testing.T) {
@@ -130,18 +115,11 @@ func TestAwaitContextCancelledThenRetried(t *testing.T) {
 	cancelledCtx, cancel := context.WithCancel(t.Context())
 	cancel()
 	_, err := f.Await(cancelledCtx)
-	if !errors.Is(err, context.Canceled) {
-		t.Fatalf("expected Canceled, got %v", err)
-	}
+	assert.ErrorIs(t, err, context.Canceled)
 	// then: second Await with a fresh context still receives the result
 	result, err := f.Await(t.Context())
-	if err != nil {
-		t.Fatalf("retry Await: unexpected error %v", err)
-	}
-
-	if result != 7 {
-		t.Fatalf("expected 7, got %d", result)
-	}
+	assert.NoError(t, err)
+	assert.Equal(t, 7, result)
 }
 
 func TestAwaitConcurrent(t *testing.T) {
@@ -149,11 +127,10 @@ func TestAwaitConcurrent(t *testing.T) {
 	const n = 50
 	ctx := t.Context()
 	f := AsyncWithContext(ctx, asyncFuncMaker(99, nil))
-
 	var wg sync.WaitGroup
 	results := make([]int, n)
 	errs := make([]error, n)
-
+	// when
 	for i := range n {
 		wg.Add(1)
 		go func(idx int) {
@@ -162,16 +139,10 @@ func TestAwaitConcurrent(t *testing.T) {
 		}(i)
 	}
 	wg.Wait()
-
 	// then: every goroutine received the same result
 	for i := range n {
-		if errs[i] != nil {
-			t.Errorf("goroutine %d: unexpected error %v", i, errs[i])
-		}
-
-		if results[i] != 99 {
-			t.Errorf("goroutine %d: expected 99, got %d", i, results[i])
-		}
+		assert.NoError(t, errs[i], "goroutine %d", i)
+		assert.Equal(t, 99, results[i], "goroutine %d", i)
 	}
 }
 
@@ -185,13 +156,8 @@ func TestAwaitWithTimeout(t *testing.T) {
 		// when
 		result, err := f.AwaitWithTimeout(200 * time.Millisecond)
 		// then
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		if result != 42 {
-			t.Fatalf("expected 42, got %d", result)
-		}
+		assert.NoError(t, err)
+		assert.Equal(t, 42, result)
 	})
 
 	t.Run("timeout exceeded", func(t *testing.T) {
@@ -203,9 +169,7 @@ func TestAwaitWithTimeout(t *testing.T) {
 		// when
 		_, result := f.AwaitWithTimeout(5 * time.Millisecond)
 		// then
-		if !errors.Is(result, context.DeadlineExceeded) {
-			t.Fatalf("expected DeadlineExceeded, got %v", result)
-		}
+		assert.ErrorIs(t, result, context.DeadlineExceeded)
 	})
 }
 
@@ -220,15 +184,8 @@ func TestMultipleConsumers(t *testing.T) {
 	result1, err1 := f.Await(t.Context())
 	result2, err2 := f.Await(t.Context())
 	// then
-	if err1 != nil {
-		t.Fatalf("first Await: unexpected error %v", err1)
-	}
-
-	if err2 != nil {
-		t.Fatalf("second Await: unexpected error %v", err2)
-	}
-
-	if result1 != expected || result2 != expected {
-		t.Fatalf("expected '%s'/'%s', got '%s'/'%s'", expected, expected, result1, result2)
-	}
+	assert.NoError(t, err1)
+	assert.NoError(t, err2)
+	assert.Equal(t, expected, result1)
+	assert.Equal(t, expected, result2)
 }
