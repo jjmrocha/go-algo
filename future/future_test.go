@@ -53,7 +53,7 @@ func TestAsyncWithWait(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			// when
-			got, err := AsyncWithContext(ctx, asyncFuncMaker(test.value, test.error)).
+			result, err := AsyncWithContext(ctx, asyncFuncMaker(test.value, test.error)).
 				Await(ctx)
 			// then
 			if test.expectError != nil {
@@ -65,8 +65,8 @@ func TestAsyncWithWait(t *testing.T) {
 					t.Errorf("expect no error, got %v", err)
 				}
 
-				if test.expectValue != got {
-					t.Errorf("expected %v, got %v", test.expectValue, got)
+				if test.expectValue != result {
+					t.Errorf("expected %v, got %v", test.expectValue, result)
 				}
 			}
 		})
@@ -78,11 +78,11 @@ func TestAsyncWithTimeout(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Millisecond)
 	defer cancel()
 	// when
-	_, err := AsyncWithContext(ctx, asyncFuncMaker(1, nil)).
+	_, result := AsyncWithContext(ctx, asyncFuncMaker(1, nil)).
 		Await(ctx)
 	// then
-	if !errors.Is(err, context.DeadlineExceeded) {
-		t.Errorf("expected DeadlineExceeded, got %v", err)
+	if !errors.Is(result, context.DeadlineExceeded) {
+		t.Errorf("expected DeadlineExceeded, got %v", result)
 	}
 }
 
@@ -91,11 +91,11 @@ func TestAsyncWithCancel(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 	// when
-	_, err := AsyncWithContext(ctx, asyncFuncMaker(1, nil)).
+	_, result := AsyncWithContext(ctx, asyncFuncMaker(1, nil)).
 		Await(ctx)
 	// then
-	if !errors.Is(err, context.Canceled) {
-		t.Errorf("expected Canceled, got %v", err)
+	if !errors.Is(result, context.Canceled) {
+		t.Errorf("expected Canceled, got %v", result)
 	}
 }
 
@@ -104,8 +104,8 @@ func TestAwaitCanBeCalledMultipleTimes(t *testing.T) {
 	ctx := t.Context()
 	f := AsyncWithContext(ctx, asyncFuncMaker(42, nil))
 	// when: await the same future twice sequentially
-	v1, err1 := f.Await(ctx)
-	v2, err2 := f.Await(ctx)
+	result1, err1 := f.Await(ctx)
+	result2, err2 := f.Await(ctx)
 	// then: both calls return the same result
 	if err1 != nil {
 		t.Fatalf("first Await: unexpected error %v", err1)
@@ -115,8 +115,8 @@ func TestAwaitCanBeCalledMultipleTimes(t *testing.T) {
 		t.Fatalf("second Await: unexpected error %v", err2)
 	}
 
-	if v1 != 42 || v2 != 42 {
-		t.Fatalf("expected 42/42, got %d/%d", v1, v2)
+	if result1 != 42 || result2 != 42 {
+		t.Fatalf("expected 42/42, got %d/%d", result1, result2)
 	}
 }
 
@@ -134,13 +134,13 @@ func TestAwaitContextCancelledThenRetried(t *testing.T) {
 		t.Fatalf("expected Canceled, got %v", err)
 	}
 	// then: second Await with a fresh context still receives the result
-	got, err := f.Await(t.Context())
+	result, err := f.Await(t.Context())
 	if err != nil {
 		t.Fatalf("retry Await: unexpected error %v", err)
 	}
 
-	if got != 7 {
-		t.Fatalf("expected 7, got %d", got)
+	if result != 7 {
+		t.Fatalf("expected 7, got %d", result)
 	}
 }
 
@@ -175,48 +175,50 @@ func TestAwaitConcurrent(t *testing.T) {
 	}
 }
 
-func TestAwaitWithTimeout_Success(t *testing.T) {
-	// given: computation finishes well within the timeout
-	f := Async(func() (int, error) {
-		time.Sleep(10 * time.Millisecond)
-		return 42, nil
-	})
-	// when
-	got, err := f.AwaitWithTimeout(200 * time.Millisecond)
-	// then
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+func TestAwaitWithTimeout(t *testing.T) {
+	t.Run("success within timeout", func(t *testing.T) {
+		// given: computation finishes well within the timeout
+		f := Async(func() (int, error) {
+			time.Sleep(10 * time.Millisecond)
+			return 42, nil
+		})
+		// when
+		result, err := f.AwaitWithTimeout(200 * time.Millisecond)
+		// then
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 
-	if got != 42 {
-		t.Fatalf("expected 42, got %d", got)
-	}
-}
-
-func TestAwaitWithTimeout_Timeout(t *testing.T) {
-	// given: computation takes longer than the timeout
-	f := Async(func() (int, error) {
-		time.Sleep(200 * time.Millisecond)
-		return 42, nil
+		if result != 42 {
+			t.Fatalf("expected 42, got %d", result)
+		}
 	})
-	// when
-	_, err := f.AwaitWithTimeout(5 * time.Millisecond)
-	// then
-	if !errors.Is(err, context.DeadlineExceeded) {
-		t.Fatalf("expected DeadlineExceeded, got %v", err)
-	}
+
+	t.Run("timeout exceeded", func(t *testing.T) {
+		// given: computation takes longer than the timeout
+		f := Async(func() (int, error) {
+			time.Sleep(200 * time.Millisecond)
+			return 42, nil
+		})
+		// when
+		_, result := f.AwaitWithTimeout(5 * time.Millisecond)
+		// then
+		if !errors.Is(result, context.DeadlineExceeded) {
+			t.Fatalf("expected DeadlineExceeded, got %v", result)
+		}
+	})
 }
 
 func TestMultipleConsumers(t *testing.T) {
-	const want = "done"
 	// given
+	expected := "done"
 	f := Async(func() (string, error) {
 		time.Sleep(20 * time.Millisecond)
-		return want, nil
+		return expected, nil
 	})
 	// when
-	r1, err1 := f.Await(t.Context())
-	r2, err2 := f.Await(t.Context())
+	result1, err1 := f.Await(t.Context())
+	result2, err2 := f.Await(t.Context())
 	// then
 	if err1 != nil {
 		t.Fatalf("first Await: unexpected error %v", err1)
@@ -226,7 +228,7 @@ func TestMultipleConsumers(t *testing.T) {
 		t.Fatalf("second Await: unexpected error %v", err2)
 	}
 
-	if r1 != want || r2 != want {
-		t.Fatalf("expected '%s'/'%s', got '%s'/'%s'", want, want, r1, r2)
+	if result1 != expected || result2 != expected {
+		t.Fatalf("expected '%s'/'%s', got '%s'/'%s'", expected, expected, result1, result2)
 	}
 }

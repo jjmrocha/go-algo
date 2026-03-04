@@ -2,19 +2,19 @@ package queue
 
 import "testing"
 
-func TestNewQueueIsEmpty(t *testing.T) {
+func TestNew(t *testing.T) {
 	// when
-	q := New[int]()
+	result := New[int]()
 	// then
-	if q == nil {
+	if result == nil {
 		t.Fatalf("New returned nil")
 	}
 
-	if q.Len() != 0 {
-		t.Fatalf("Expected size 0, got %d", q.Len())
+	if result.Len() != 0 {
+		t.Fatalf("Expected size 0, got %d", result.Len())
 	}
 
-	if !q.Empty() {
+	if !result.Empty() {
 		t.Fatalf("Expected empty queue")
 	}
 }
@@ -37,39 +37,41 @@ func TestEnqueue(t *testing.T) {
 }
 
 func TestDequeue(t *testing.T) {
-	// given
-	q := New[int]()
-	q.Enqueue(10)
-	q.Enqueue(20)
-	// when
-	got, ok := q.Dequeue()
-	// then
-	if !ok {
-		t.Fatalf("Dequeue returned false on non-empty queue")
-	}
+	t.Run("non-empty queue", func(t *testing.T) {
+		// given
+		q := New[int]()
+		q.Enqueue(10)
+		q.Enqueue(20)
+		// when
+		result, ok := q.Dequeue()
+		// then
+		if !ok {
+			t.Fatalf("Dequeue returned false on non-empty queue")
+		}
 
-	if got != 10 {
-		t.Fatalf("Expected 10, got %d", got)
-	}
+		if result != 10 {
+			t.Fatalf("Expected 10, got %d", result)
+		}
 
-	if q.Len() != 1 {
-		t.Fatalf("Expected size 1 after dequeue, got %d", q.Len())
-	}
-}
+		if q.Len() != 1 {
+			t.Fatalf("Expected size 1 after dequeue, got %d", q.Len())
+		}
+	})
 
-func TestDequeueEmpty(t *testing.T) {
-	// given
-	q := New[int]()
-	// when
-	got, ok := q.Dequeue()
-	// then
-	if ok {
-		t.Fatalf("Dequeue on empty queue should return false")
-	}
+	t.Run("empty queue", func(t *testing.T) {
+		// given
+		q := New[int]()
+		// when
+		result, ok := q.Dequeue()
+		// then
+		if ok {
+			t.Fatalf("Dequeue on empty queue should return false")
+		}
 
-	if got != 0 {
-		t.Fatalf("Dequeue on empty queue should return zero value, got %d", got)
-	}
+		if result != 0 {
+			t.Fatalf("Dequeue on empty queue should return zero value, got %d", result)
+		}
+	})
 }
 
 func TestQueueFIFOOrdering(t *testing.T) {
@@ -79,13 +81,13 @@ func TestQueueFIFOOrdering(t *testing.T) {
 	q.Enqueue(2)
 	q.Enqueue(3)
 	// when / then
-	for _, want := range []int{1, 2, 3} {
-		got, ok := q.Dequeue()
+	for _, expected := range []int{1, 2, 3} {
+		result, ok := q.Dequeue()
 		if !ok {
 			t.Fatalf("Dequeue returned false, expected true")
 		}
-		if got != want {
-			t.Fatalf("Expected %d, got %d", want, got)
+		if result != expected {
+			t.Fatalf("Expected %d, got %d", expected, result)
 		}
 	}
 }
@@ -112,13 +114,13 @@ func TestQueueRefillAfterDrain(t *testing.T) {
 	q.Dequeue()
 	// when
 	q.Enqueue(2)
-	got, ok := q.Dequeue()
+	result, ok := q.Dequeue()
 	// then
 	if !ok {
 		t.Fatalf("Dequeue returned false after refill")
 	}
 
-	if got != 2 {
-		t.Fatalf("Expected 2 after refill, got %d", got)
+	if result != 2 {
+		t.Fatalf("Expected 2 after refill, got %d", result)
 	}
 }

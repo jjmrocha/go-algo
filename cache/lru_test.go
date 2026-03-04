@@ -17,25 +17,27 @@ func mustNewLRUCache[K comparable, V any](t testing.TB, capacity int) *LRUCache[
 }
 
 func TestNewLRUCache(t *testing.T) {
-	// when
-	c := mustNewLRUCache[string, int](t, 3)
-	// then
-	if c.Cap() != 3 {
-		t.Fatalf("Expected capacity 3, got %d", c.Cap())
-	}
-
-	if c.Len() != 0 {
-		t.Fatalf("Expected empty cache, got len %d", c.Len())
-	}
-}
-
-func TestNewLRUCacheInvalidCapacity(t *testing.T) {
-	for _, cap := range []int{0, -1, -100} {
-		_, err := NewLRUCache[string, int](cap)
-		if !errors.Is(err, ErrInvalidCapacity) {
-			t.Fatalf("capacity %d: expected ErrInvalidCapacity, got %v", cap, err)
+	t.Run("valid capacity", func(t *testing.T) {
+		// when
+		result := mustNewLRUCache[string, int](t, 3)
+		// then
+		if result.Cap() != 3 {
+			t.Fatalf("Expected capacity 3, got %d", result.Cap())
 		}
-	}
+
+		if result.Len() != 0 {
+			t.Fatalf("Expected empty cache, got len %d", result.Len())
+		}
+	})
+
+	t.Run("invalid capacity", func(t *testing.T) {
+		for _, cap := range []int{0, -1, -100} {
+			_, err := NewLRUCache[string, int](cap)
+			if !errors.Is(err, ErrInvalidCapacity) {
+				t.Fatalf("capacity %d: expected ErrInvalidCapacity, got %v", cap, err)
+			}
+		}
+	})
 }
 
 func TestLRUCachePut(t *testing.T) {
@@ -51,34 +53,36 @@ func TestLRUCachePut(t *testing.T) {
 }
 
 func TestLRUCacheGet(t *testing.T) {
-	// given
-	c := mustNewLRUCache[string, int](t, 3)
-	c.Put("a", 1)
-	// when
-	got, ok := c.Get("a")
-	// then
-	if !ok {
-		t.Fatalf("Get returned false for existing key")
-	}
+	t.Run("existing key", func(t *testing.T) {
+		// given
+		c := mustNewLRUCache[string, int](t, 3)
+		c.Put("a", 1)
+		// when
+		result, ok := c.Get("a")
+		// then
+		if !ok {
+			t.Fatalf("Get returned false for existing key")
+		}
 
-	if got != 1 {
-		t.Fatalf("Expected 1, got %d", got)
-	}
-}
+		if result != 1 {
+			t.Fatalf("Expected 1, got %d", result)
+		}
+	})
 
-func TestLRUCacheGetMiss(t *testing.T) {
-	// given
-	c := mustNewLRUCache[string, int](t, 3)
-	// when
-	got, ok := c.Get("missing")
-	// then
-	if ok {
-		t.Fatalf("Get should return false for missing key")
-	}
+	t.Run("missing key", func(t *testing.T) {
+		// given
+		c := mustNewLRUCache[string, int](t, 3)
+		// when
+		result, ok := c.Get("missing")
+		// then
+		if ok {
+			t.Fatalf("Get should return false for missing key")
+		}
 
-	if got != 0 {
-		t.Fatalf("Get miss should return zero value, got %d", got)
-	}
+		if result != 0 {
+			t.Fatalf("Get miss should return zero value, got %d", result)
+		}
+	})
 }
 
 func TestLRUCacheEvictsLRU(t *testing.T) {
@@ -141,13 +145,13 @@ func TestLRUCachePutUpdatePromotesToHead(t *testing.T) {
 		t.Fatalf("Key 'b' should have been evicted")
 	}
 
-	got, ok := c.Get("a")
+	result, ok := c.Get("a")
 	if !ok {
 		t.Fatalf("Key 'a' should still be present after update")
 	}
 
-	if got != 99 {
-		t.Fatalf("Expected updated value 99, got %d", got)
+	if result != 99 {
+		t.Fatalf("Expected updated value 99, got %d", result)
 	}
 }
 
@@ -170,7 +174,7 @@ func TestLRUCachePutUpdateDoesNotEvict(t *testing.T) {
 
 func TestLRUCacheGetHeadTwice(t *testing.T) {
 	// Regression: accessing the MRU node twice must not corrupt backward links.
-	// given: three entries, b is MRU
+	// given: three entries, c is MRU
 	c := mustNewLRUCache[string, int](t, 3)
 	c.Put("a", 1)
 	c.Put("b", 2)
@@ -213,13 +217,13 @@ func TestLRUCacheCapacityOne(t *testing.T) {
 		t.Fatalf("Key 'a' should have been evicted")
 	}
 
-	got, ok := c.Get("b")
+	result, ok := c.Get("b")
 	if !ok {
 		t.Fatalf("Key 'b' should be present")
 	}
 
-	if got != 2 {
-		t.Fatalf("Expected 2, got %d", got)
+	if result != 2 {
+		t.Fatalf("Expected 2, got %d", result)
 	}
 
 	if c.Len() != 1 {
@@ -266,17 +270,28 @@ func TestLRUCacheDeleteMiss(t *testing.T) {
 }
 
 func TestLRUCacheExists(t *testing.T) {
-	// given
-	c := mustNewLRUCache[string, int](t, 3)
-	c.Put("a", 1)
-	// then
-	if !c.Exists("a") {
-		t.Fatalf("Exists should return true for present key")
-	}
+	t.Run("present key", func(t *testing.T) {
+		// given
+		c := mustNewLRUCache[string, int](t, 3)
+		c.Put("a", 1)
+		// when
+		result := c.Exists("a")
+		// then
+		if !result {
+			t.Fatalf("Exists should return true for present key")
+		}
+	})
 
-	if c.Exists("missing") {
-		t.Fatalf("Exists should return false for absent key")
-	}
+	t.Run("absent key", func(t *testing.T) {
+		// given
+		c := mustNewLRUCache[string, int](t, 3)
+		// when
+		result := c.Exists("missing")
+		// then
+		if result {
+			t.Fatalf("Exists should return false for absent key")
+		}
+	})
 }
 
 func TestLRUCacheExistsDoesNotPromote(t *testing.T) {

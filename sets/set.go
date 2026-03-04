@@ -5,11 +5,17 @@
 // concurrent use without external synchronisation.
 package sets
 
+import (
+	"fmt"
+	"iter"
+	"strings"
+)
+
 // Set is an unordered collection of unique elements of type T.
 //
 // The zero value of Set is nil. A nil Set is safe for read operations
 // ([Set.Contains], [Set.Len], [Set.Remove], [Set.ToSlice]), but calling
-// [Set.Add] on a nil Set panics. Use [New] or [FromSlice] to obtain a
+// [Set.Add] on a nil Set panics. Use [New] or [Of] to obtain a
 // ready-to-use Set.
 //
 // Because Set is a map type, assigning one Set variable to another creates
@@ -21,16 +27,16 @@ func New[T comparable]() Set[T] {
 	return make(Set[T])
 }
 
-// FromSlice creates a Set containing the elements of items, silently
+// Of creates a Set containing the elements of items, silently
 // discarding any duplicates.
-func FromSlice[T comparable](items []T) Set[T] {
+func Of[T comparable](items []T) Set[T] {
 	s := make(Set[T], len(items))
 	s.Add(items...)
 	return s
 }
 
 // Add inserts items into s. Adding an element that is already present is a
-// no-op. Calling Add on a nil Set panics; use [New] or [FromSlice] to
+// no-op. Calling Add on a nil Set panics; use [New] or [Of] to
 // create a non-nil Set first.
 func (s Set[T]) Add(items ...T) {
 	for _, item := range items {
@@ -69,4 +75,86 @@ func (s Set[T]) ToSlice() []T {
 	}
 
 	return result
+}
+
+// String returns a human-readable representation of s in the form
+// set{v1, v2, ...}. The order of elements is unspecified. A nil Set
+// returns "set(nil)" and an empty Set returns "set{}".
+func (s Set[T]) String() string {
+	if s == nil {
+		return "set(nil)"
+	}
+
+	var b strings.Builder
+	b.WriteString("set{")
+	first := true
+
+	for item := range s {
+		if !first {
+			b.WriteString(", ")
+		}
+
+		_, _ = fmt.Fprintf(&b, "%v", item)
+		first = false
+	}
+
+	b.WriteString("}")
+
+	return b.String()
+}
+
+// Union returns a new Set containing all elements that are in s, o, or both.
+// A nil operand is treated as an empty set.
+func (s Set[T]) Union(o Set[T]) Set[T] {
+	result := New[T]()
+
+	for item := range s {
+		result.Add(item)
+	}
+
+	for item := range o {
+		result.Add(item)
+	}
+
+	return result
+}
+
+// Intersection returns a new Set containing only the elements present in
+// both s and o. A nil operand is treated as an empty set.
+func (s Set[T]) Intersection(o Set[T]) Set[T] {
+	result := New[T]()
+
+	for item := range s {
+		if o.Contains(item) {
+			result.Add(item)
+		}
+	}
+
+	return result
+}
+
+// Difference returns a new Set containing the elements of s that are not in o
+// (set difference s∖o). A nil o is treated as an empty set (result equals s).
+func (s Set[T]) Difference(o Set[T]) Set[T] {
+	result := New[T]()
+
+	for item := range s {
+		if !o.Contains(item) {
+			result.Add(item)
+		}
+	}
+
+	return result
+}
+
+// Values returns an iterator that yields each element of s in an unspecified
+// order. Values on a nil Set yields no elements.
+func (s Set[T]) Values() iter.Seq[T] {
+	return func(yield func(T) bool) {
+		for v := range s {
+			if !yield(v) {
+				return
+			}
+		}
+	}
 }

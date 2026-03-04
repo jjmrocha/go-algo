@@ -5,19 +5,19 @@ import (
 	"testing"
 )
 
-func TestNewSyncQueueIsEmpty(t *testing.T) {
+func TestNewSyncQueue(t *testing.T) {
 	// when
-	q := NewSyncQueue[int]()
+	result := NewSyncQueue[int]()
 	// then
-	if q == nil {
+	if result == nil {
 		t.Fatalf("NewSyncQueue returned nil")
 	}
 
-	if q.Len() != 0 {
-		t.Fatalf("Expected size 0, got %d", q.Len())
+	if result.Len() != 0 {
+		t.Fatalf("Expected size 0, got %d", result.Len())
 	}
 
-	if !q.Empty() {
+	if !result.Empty() {
 		t.Fatalf("Expected empty sync queue")
 	}
 }
@@ -29,13 +29,13 @@ func TestSyncQueueEnqueueDequeue(t *testing.T) {
 	q.Enqueue(2)
 	q.Enqueue(3)
 	// when / then — FIFO order must be preserved
-	for _, want := range []int{1, 2, 3} {
-		got, ok := q.Dequeue()
+	for _, expected := range []int{1, 2, 3} {
+		result, ok := q.Dequeue()
 		if !ok {
 			t.Fatalf("Dequeue returned false, expected true")
 		}
-		if got != want {
-			t.Fatalf("Expected %d, got %d", want, got)
+		if result != expected {
+			t.Fatalf("Expected %d, got %d", expected, result)
 		}
 	}
 }
@@ -44,14 +44,14 @@ func TestSyncQueueDequeueEmpty(t *testing.T) {
 	// given
 	q := NewSyncQueue[int]()
 	// when
-	got, ok := q.Dequeue()
+	result, ok := q.Dequeue()
 	// then
 	if ok {
 		t.Fatalf("Dequeue on empty SyncQueue should return false")
 	}
 
-	if got != 0 {
-		t.Fatalf("Dequeue on empty SyncQueue should return zero value, got %d", got)
+	if result != 0 {
+		t.Fatalf("Dequeue on empty SyncQueue should return zero value, got %d", result)
 	}
 }
 
