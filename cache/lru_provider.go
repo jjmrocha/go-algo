@@ -3,6 +3,8 @@ package cache
 import (
 	"context"
 	"errors"
+
+	"github.com/jjmrocha/go-algo/singleflight"
 )
 
 // Provider is a function that fetches the value for key on a cache miss.
@@ -23,7 +25,7 @@ type Provider[K comparable, V any] func(key K) (V, error)
 // LRUProvider is safe for concurrent use by multiple goroutines.
 type LRUProvider[K comparable, V any] struct {
 	cache    *LRUCache[K, V]
-	fetches  *computations[K, V]
+	sf       *singleflight.SingleFlight[K, V]
 	provider Provider[K, V]
 }
 
@@ -48,7 +50,7 @@ func NewLRUWithProvider[K comparable, V any](capacity int, p Provider[K, V]) (*L
 	return &LRUProvider[K, V]{
 		cache:    lru,
 		provider: p,
-		fetches:  newComputations[K, V](),
+		sf:       singleflight.New[K, V](),
 	}, nil
 }
 
@@ -67,7 +69,7 @@ func (lp *LRUProvider[K, V]) Get(ctx context.Context, key K) (V, error) {
 		return value, nil
 	}
 
-	return lp.fetches.compute(key, func() (V, error) {
+	return lp.sf.Do(key, func() (V, error) {
 		value, err := lp.provider(key)
 		if err != nil {
 			var zero V
