@@ -1,4 +1,4 @@
-package union
+package unionfind
 
 import (
 	"testing"
@@ -53,7 +53,7 @@ func TestFind(t *testing.T) {
 		assert.ErrorIs(t, result, ErrIndexOutOfRange)
 	})
 
-	t.Run("returns root after union", func(t *testing.T) {
+	t.Run("returns root after unionfind", func(t *testing.T) {
 		// given
 		u := New(3)
 		mustUnion(t, u, 0, 1)
@@ -123,7 +123,7 @@ func TestConnected(t *testing.T) {
 		assert.False(t, result)
 	})
 
-	t.Run("true after union", func(t *testing.T) {
+	t.Run("true after unionfind", func(t *testing.T) {
 		// given
 		u := New(4)
 		mustUnion(t, u, 0, 1)

@@ -67,12 +67,12 @@ A nil `Set` is safe for all read operations (`Contains`, `Len`, `ToSlice`).
 
 ---
 
-### `union` — Weighted quick-union (disjoint sets)
+### `unionfind` — Weighted quick-union (disjoint sets)
 
 ```go
-import "github.com/jjmrocha/go-algo/union"
+import "github.com/jjmrocha/go-algo/unionfind"
 
-u := union.New(10) // 10 elements, each its own set
+u := unionfind.New(10) // 10 elements, each its own set
 
 u.Union(0, 1)
 u.Union(1, 2)
