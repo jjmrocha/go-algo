@@ -65,6 +65,12 @@ func (s Set[T]) Len() int {
 	return len(s)
 }
 
+// Empty reports whether s contains no elements.
+// Empty on a nil Set returns true.
+func (s Set[T]) Empty() bool {
+	return len(s) == 0
+}
+
 // ToSlice returns a new slice containing all elements of s in an unspecified
 // order. The returned slice is never nil.
 func (s Set[T]) ToSlice() []T {

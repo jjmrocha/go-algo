@@ -431,6 +431,33 @@ func TestDifference(t *testing.T) {
 	})
 }
 
+func TestEmpty(t *testing.T) {
+	t.Run("nil set", func(t *testing.T) {
+		// given
+		var s Set[int]
+		// when
+		result := s.Empty()
+		// then
+		assert.True(t, result)
+	})
+
+	t.Run("empty set", func(t *testing.T) {
+		// when
+		result := New[int]().Empty()
+		// then
+		assert.True(t, result)
+	})
+
+	t.Run("non-empty set", func(t *testing.T) {
+		// given
+		s := Of([]int{1, 2})
+		// when
+		result := s.Empty()
+		// then
+		assert.False(t, result)
+	})
+}
+
 func TestValues(t *testing.T) {
 	t.Run("empty set yields nothing", func(t *testing.T) {
 		// given
