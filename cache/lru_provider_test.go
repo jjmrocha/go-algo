@@ -1,7 +1,6 @@
 package cache
 
 import (
-	"context"
 	"errors"
 	"sync"
 	"sync/atomic"
@@ -39,13 +38,13 @@ func TestNewLRUWithProvider(t *testing.T) {
 		assert.ErrorIs(t, result, ErrNilProvider)
 	})
 
-	t.Run("invalid capacity", func(t *testing.T) {
+	t.Run("invalid cap", func(t *testing.T) {
 		p := func(_ string) (int, error) { return 0, nil }
 		for _, cap := range []int{0, -1} {
 			// when
 			_, err := NewLRUWithProvider[string, int](cap, p)
 			// then
-			assert.ErrorIs(t, err, ErrInvalidCapacity, "capacity %d", cap)
+			assert.ErrorIs(t, err, ErrInvalidCapacity, "cap %d", cap)
 		}
 	})
 
@@ -60,28 +59,28 @@ func TestNewLRUWithProvider(t *testing.T) {
 	})
 }
 
-// ---------- Get ----------
+// ---------- GetWithContext ----------
 
 func TestLRUProviderGet(t *testing.T) {
-	t.Run("cache miss", func(t *testing.T) {
+	t.Run("kv miss", func(t *testing.T) {
 		// given
 		var calls atomic.Int32
 		lp := mustNewLRUWithProvider(t, 3, counterProvider[string](&calls))
 		// when
-		result, err := lp.Get(context.Background(), "x")
+		result, err := lp.GetWithContext(t.Context(), "x")
 		// then
 		assert.NoError(t, err)
 		assert.Equal(t, "x", result)
 		assert.Equal(t, int32(1), calls.Load())
 	})
 
-	t.Run("cache hit", func(t *testing.T) {
-		// given: first call populates cache
+	t.Run("kv hit", func(t *testing.T) {
+		// given: first call populates kv
 		var calls atomic.Int32
 		lp := mustNewLRUWithProvider(t, 3, counterProvider[string](&calls))
-		lp.Get(context.Background(), "x") //nolint:errcheck
-		// when: second call should hit cache
-		result, err := lp.Get(context.Background(), "x")
+		lp.GetWithContext(t.Context(), "x") //nolint:errcheck
+		// when: second call should hit kv
+		result, err := lp.GetWithContext(t.Context(), "x")
 		// then
 		assert.NoError(t, err)
 		assert.Equal(t, "x", result)
@@ -94,13 +93,13 @@ func TestLRUProviderGet(t *testing.T) {
 		p := func(_ string) (int, error) { return 0, providerErr }
 		lp := mustNewLRUWithProvider(t, 3, p)
 		// when
-		result, err := lp.Get(context.Background(), "x")
+		result, err := lp.GetWithContext(t.Context(), "x")
 		// then
 		assert.ErrorIs(t, err, providerErr)
 		assert.Equal(t, 0, result)
 	})
 
-	t.Run("error does not cache", func(t *testing.T) {
+	t.Run("error does not kv", func(t *testing.T) {
 		// given: provider fails on first call, succeeds on second
 		var calls atomic.Int32
 		providerErr := errors.New("transient error")
@@ -113,10 +112,10 @@ func TestLRUProviderGet(t *testing.T) {
 		}
 		lp := mustNewLRUWithProvider(t, 3, p)
 		// when: first call fails
-		_, err := lp.Get(context.Background(), "x")
+		_, err := lp.GetWithContext(t.Context(), "x")
 		assert.ErrorIs(t, err, providerErr)
 		// then: second call should retry the provider (not return a cached error)
-		result, err := lp.Get(context.Background(), "x")
+		result, err := lp.GetWithContext(t.Context(), "x")
 		assert.NoError(t, err)
 		assert.Equal(t, "x", result)
 		assert.Equal(t, int32(2), calls.Load())
@@ -127,13 +126,13 @@ func TestLRUProviderGet(t *testing.T) {
 
 func TestLRUProviderInvalidate(t *testing.T) {
 	t.Run("forces provider re-call", func(t *testing.T) {
-		// given: populate cache
+		// given: populate kv
 		var calls atomic.Int32
 		lp := mustNewLRUWithProvider(t, 3, counterProvider[string](&calls))
-		lp.Get(context.Background(), "x") //nolint:errcheck
+		lp.GetWithContext(t.Context(), "x") //nolint:errcheck
 		// when: invalidate and get again
 		lp.Invalidate("x")
-		lp.Get(context.Background(), "x") //nolint:errcheck
+		lp.GetWithContext(t.Context(), "x") //nolint:errcheck
 		// then: provider must have been called twice
 		assert.Equal(t, int32(2), calls.Load())
 	})
@@ -155,8 +154,8 @@ func TestLRUProviderLen(t *testing.T) {
 	// given
 	lp := mustNewLRUWithProvider(t, 3, counterProvider[string](new(atomic.Int32)))
 	// when
-	lp.Get(context.Background(), "a") //nolint:errcheck
-	lp.Get(context.Background(), "b") //nolint:errcheck
+	lp.GetWithContext(t.Context(), "a") //nolint:errcheck
+	lp.GetWithContext(t.Context(), "b") //nolint:errcheck
 	// then
 	assert.Equal(t, 2, lp.Len())
 }
@@ -171,16 +170,16 @@ func TestLRUProviderCap(t *testing.T) {
 // ---------- Eviction ----------
 
 func TestLRUProviderEviction(t *testing.T) {
-	// given: capacity 2, fill with a and b
+	// given: cap 2, fill with a and b
 	var calls atomic.Int32
 	lp := mustNewLRUWithProvider(t, 2, counterProvider[string](&calls))
-	lp.Get(context.Background(), "a") //nolint:errcheck
-	lp.Get(context.Background(), "b") //nolint:errcheck
-	// when: fetch c — evicts a (LRU)
-	lp.Get(context.Background(), "c") //nolint:errcheck
+	lp.GetWithContext(t.Context(), "a") //nolint:errcheck
+	lp.GetWithContext(t.Context(), "b") //nolint:errcheck
+	// when: read c — evicts a (LRU)
+	lp.GetWithContext(t.Context(), "c") //nolint:errcheck
 	// then: fetching a again must call the provider (it was evicted)
 	callsBefore := calls.Load()
-	lp.Get(context.Background(), "a") //nolint:errcheck
+	lp.GetWithContext(t.Context(), "a") //nolint:errcheck
 	assert.Greater(t, calls.Load(), callsBefore)
 	assert.LessOrEqual(t, lp.Len(), lp.Cap())
 }
@@ -193,15 +192,16 @@ func TestLRUProviderConcurrentGet(t *testing.T) {
 	var calls atomic.Int32
 	lp := mustNewLRUWithProvider(t, 50, counterProvider[int](&calls))
 	var wg sync.WaitGroup
+	ctx := t.Context()
 	// when: concurrent Gets on overlapping keys
 	for i := range goroutines {
 		wg.Add(1)
 		go func(v int) {
 			defer wg.Done()
-			lp.Get(context.Background(), v%20) //nolint:errcheck
+			lp.GetWithContext(ctx, v%20) //nolint:errcheck
 		}(i)
 	}
 	wg.Wait()
-	// then: cache is not corrupted and len is within capacity
+	// then: kv is not corrupted and len is within cap
 	assert.LessOrEqual(t, lp.Len(), lp.Cap())
 }

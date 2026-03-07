@@ -18,7 +18,7 @@ func mustNewLRUCache[K comparable, V any](t testing.TB, capacity int) *LRUCache[
 }
 
 func TestNewLRUCache(t *testing.T) {
-	t.Run("valid capacity", func(t *testing.T) {
+	t.Run("valid cap", func(t *testing.T) {
 		// when
 		result := mustNewLRUCache[string, int](t, 3)
 		// then
@@ -26,12 +26,12 @@ func TestNewLRUCache(t *testing.T) {
 		assert.Equal(t, 0, result.Len())
 	})
 
-	t.Run("invalid capacity", func(t *testing.T) {
+	t.Run("invalid cap", func(t *testing.T) {
 		for _, cap := range []int{0, -1, -100} {
 			// when
 			_, err := NewLRUCache[string, int](cap)
 			// then
-			assert.ErrorIs(t, err, ErrInvalidCapacity, "capacity %d", cap)
+			assert.ErrorIs(t, err, ErrInvalidCapacity, "cap %d", cap)
 		}
 	})
 }
@@ -70,7 +70,7 @@ func TestLRUCacheGet(t *testing.T) {
 }
 
 func TestLRUCacheEvictsLRU(t *testing.T) {
-	// given: capacity 2, insert a then b
+	// given: cap 2, insert a then b
 	c := mustNewLRUCache[string, int](t, 2)
 	c.Put("a", 1)
 	c.Put("b", 2)
@@ -84,7 +84,7 @@ func TestLRUCacheEvictsLRU(t *testing.T) {
 }
 
 func TestLRUCacheGetPromotesToHead(t *testing.T) {
-	// given: capacity 2, insert a then b (a is LRU)
+	// given: cap 2, insert a then b (a is LRU)
 	c := mustNewLRUCache[string, int](t, 2)
 	c.Put("a", 1)
 	c.Put("b", 2)
@@ -98,7 +98,7 @@ func TestLRUCacheGetPromotesToHead(t *testing.T) {
 }
 
 func TestLRUCachePutUpdatePromotesToHead(t *testing.T) {
-	// given: capacity 2, insert a then b (a is LRU)
+	// given: cap 2, insert a then b (a is LRU)
 	c := mustNewLRUCache[string, int](t, 2)
 	c.Put("a", 1)
 	c.Put("b", 2)
@@ -113,7 +113,7 @@ func TestLRUCachePutUpdatePromotesToHead(t *testing.T) {
 }
 
 func TestLRUCachePutUpdateDoesNotEvict(t *testing.T) {
-	// given: cache at capacity
+	// given: kv at cap
 	c := mustNewLRUCache[string, int](t, 2)
 	c.Put("a", 1)
 	c.Put("b", 2)
@@ -205,7 +205,7 @@ func TestLRUCacheExists(t *testing.T) {
 }
 
 func TestLRUCacheExistsDoesNotPromote(t *testing.T) {
-	// given: capacity 2, a is LRU
+	// given: cap 2, a is LRU
 	c := mustNewLRUCache[string, int](t, 2)
 	c.Put("a", 1)
 	c.Put("b", 2)
@@ -231,6 +231,6 @@ func TestLRUCacheConcurrentAccess(t *testing.T) {
 		}(i)
 	}
 	wg.Wait()
-	// then: cache len must be within capacity and not corrupt
+	// then: kv len must be within cap and not corrupt
 	assert.LessOrEqual(t, c.Len(), c.Cap())
 }
