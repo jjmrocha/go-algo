@@ -73,6 +73,9 @@ func (lp *LRUProvider[K, V]) GetWithContext(ctx context.Context, key K) (V, erro
 	return lp.read(key).AwaitWithContext(ctx)
 }
 
+// Get returns the cached value for key, blocking indefinitely until the
+// provider completes on a cache miss. It is equivalent to calling
+// GetWithContext with context.Background().
 func (lp *LRUProvider[K, V]) Get(key K) (V, error) {
 	if value, ok := lp.cache.Get(key); ok {
 		return value, nil
@@ -96,6 +99,8 @@ func (lp *LRUProvider[K, V]) read(key K) *future.Future[V] {
 	return lp.sf.Do(key, fn)
 }
 
+// Exists reports whether key is currently held in the cache.
+// It does not affect LRU order.
 func (lp *LRUProvider[K, V]) Exists(key K) bool {
 	return lp.cache.Exists(key)
 }

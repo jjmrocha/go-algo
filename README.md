@@ -1,7 +1,7 @@
 # go-algo
 
 A collection of generic algorithms and data structures implemented in Go, designed to be reused across projects.
-Each package is independently importable and carries no cross-package dependencies (except `cache`, which uses `future` internally).
+Each package is independently importable and carries no cross-package dependencies (except `cache`, which uses `future` and `singleflight` internally).
 
 Requires **Go 1.23+** (uses `iter.Seq` / range-over-func).
 
@@ -41,6 +41,15 @@ v, ok := q.Dequeue() // "a", true
 ```
 
 `SyncQueue[T]` provides the same API safe for concurrent use.
+
+`BlockingQueue[T]` is a bounded, channel-backed variant. `Enqueue` blocks when the
+queue is full; `Dequeue` blocks when it is empty — making it suitable for producer/consumer pipelines.
+
+```go
+bq, err := queue.NewBlockingQueue[int](16) // capacity 16
+bq.Enqueue(42)                             // blocks if full
+v := bq.Dequeue()                          // blocks if empty
+```
 
 ---
 
@@ -121,6 +130,30 @@ result := slices.Collect(seq) // [20, 40]
 
 ---
 
+### `singleflight` — Duplicate call suppression
+
+Deduplicates concurrent calls for the same key, preventing cache stampedes.
+When multiple goroutines request the same key simultaneously, only one provider
+invocation runs; all callers share the result.
+
+```go
+import "github.com/jjmrocha/go-algo/singleflight"
+
+sf := singleflight.New[string, User]()
+
+// All concurrent calls for "user:42" share one provider invocation.
+f := sf.Do("user:42", func() (User, error) {
+    return fetchUserFromDB(42)
+})
+user, err := f.Await()
+```
+
+Completed computations are not retained: a subsequent call after the Future
+resolves starts a fresh provider invocation. `singleflight` is also used
+internally by `LRUProvider`.
+
+---
+
 ### `future` — Generic async computation
 
 ```go
@@ -130,13 +163,17 @@ f := future.Async(func() (int, error) {
     return expensiveComputation(), nil
 })
 
-// Multiple goroutines can Await the same Future concurrently.
-result, err := f.Await(ctx)
+// Block until done (no cancellation).
+result, err := f.Await()
 
-// Or with an explicit timeout:
+// Block with context cancellation / deadline.
+result, err = f.AwaitWithContext(ctx)
+
+// Block with an explicit timeout.
 result, err = f.AwaitWithTimeout(5 * time.Second)
 ```
 
+Multiple goroutines can await the same Future concurrently — all receive the same result.
 `AsyncWithContext` forwards a context to the computation function.
 
 ---
@@ -169,7 +206,8 @@ provider := func(key string) (string, error) {
 lp, err := cache.NewLRUWithProvider[string, string](100, provider)
 
 // Cache miss → provider called once, result shared with concurrent callers.
-value, err := lp.Get(ctx, "key")
+value, err := lp.GetWithContext(ctx, "key") // context-aware
+value, err  = lp.Get("key")                // blocks indefinitely
 
 // Force re-fetch on next Get.
 lp.Invalidate("key")
