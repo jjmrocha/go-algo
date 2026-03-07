@@ -78,6 +78,54 @@ func TestPeek(t *testing.T) {
 	})
 }
 
+func TestValues(t *testing.T) {
+	t.Run("drains stack in LIFO order", func(t *testing.T) {
+		// given
+		s := New[int]()
+		s.Push(1)
+		s.Push(2)
+		s.Push(3)
+		// when
+		var result []int
+		for v := range s.Values() {
+			result = append(result, v)
+		}
+		// then
+		assert.Equal(t, []int{3, 2, 1}, result)
+		assert.True(t, s.Empty())
+	})
+
+	t.Run("empty stack yields nothing", func(t *testing.T) {
+		// given
+		s := New[int]()
+		// when
+		called := false
+		for range s.Values() {
+			called = true
+		}
+		// then
+		assert.False(t, called)
+	})
+
+	t.Run("early termination", func(t *testing.T) {
+		// given
+		s := New[int]()
+		s.Push(1)
+		s.Push(2)
+		s.Push(3)
+		// when
+		count := 0
+		for range s.Values() {
+			count++
+			if count == 2 {
+				break
+			}
+		}
+		// then
+		assert.Equal(t, 2, count)
+	})
+}
+
 func TestGenericType(t *testing.T) {
 	// given
 	s := New[string]()

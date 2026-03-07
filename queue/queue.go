@@ -3,6 +3,8 @@
 // type via Go generics.
 package queue
 
+import "iter"
+
 type node[T any] struct {
 	next *node[T]
 	data T
@@ -61,4 +63,17 @@ func (q *Queue[T]) Len() int64 {
 // Empty reports whether the queue contains no elements.
 func (q *Queue[T]) Empty() bool {
 	return q.size == 0
+}
+
+// Values returns an iterator that drains the queue from front to back.
+// Each dequeued element is yielded once; the queue is empty after the
+// iterator is fully consumed.
+func (q *Queue[T]) Values() iter.Seq[T] {
+	return func(yield func(T) bool) {
+		for v, ok := q.Dequeue(); ok; v, ok = q.Dequeue() {
+			if !yield(v) {
+				return
+			}
+		}
+	}
 }

@@ -88,3 +88,51 @@ func TestQueueRefillAfterDrain(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, 2, result)
 }
+
+func TestQueueValues(t *testing.T) {
+	t.Run("drains queue in FIFO order", func(t *testing.T) {
+		// given
+		q := New[int]()
+		q.Enqueue(1)
+		q.Enqueue(2)
+		q.Enqueue(3)
+		// when
+		var result []int
+		for v := range q.Values() {
+			result = append(result, v)
+		}
+		// then
+		assert.Equal(t, []int{1, 2, 3}, result)
+		assert.True(t, q.Empty())
+	})
+
+	t.Run("empty queue yields nothing", func(t *testing.T) {
+		// given
+		q := New[int]()
+		// when
+		called := false
+		for range q.Values() {
+			called = true
+		}
+		// then
+		assert.False(t, called)
+	})
+
+	t.Run("early termination", func(t *testing.T) {
+		// given
+		q := New[int]()
+		q.Enqueue(1)
+		q.Enqueue(2)
+		q.Enqueue(3)
+		// when
+		count := 0
+		for range q.Values() {
+			count++
+			if count == 2 {
+				break
+			}
+		}
+		// then
+		assert.Equal(t, 2, count)
+	})
+}

@@ -1,6 +1,9 @@
 package queue
 
-import "sync"
+import (
+	"iter"
+	"sync"
+)
 
 // SyncQueue is a thread-safe wrapper around [Queue] that uses a read/write
 // mutex to allow concurrent reads while serialising writes.
@@ -46,4 +49,17 @@ func (q *SyncQueue[T]) Empty() bool {
 	q.mu.RLock()
 	defer q.mu.RUnlock()
 	return q.q.Empty()
+}
+
+// Values returns an iterator that drains the queue from front to back.
+// Each dequeued element is yielded once; the queue is empty after the
+// iterator is fully consumed. It is safe for concurrent use.
+func (q *SyncQueue[T]) Values() iter.Seq[T] {
+	return func(yield func(T) bool) {
+		for v, ok := q.Dequeue(); ok; v, ok = q.Dequeue() {
+			if !yield(v) {
+				return
+			}
+		}
+	}
 }

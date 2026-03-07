@@ -2,17 +2,19 @@
 // backed by a singly-linked list. It supports any element type via Go generics.
 package stack
 
+import "iter"
+
 // node is an internal linked-list element that holds a value and a pointer to
 // the previous node in the chain.
 type node[T any] struct {
-	previous *node[T]
-	data     T
+	next *node[T]
+	data T
 }
 
 // Stack is a generic LIFO data structure. The zero value is ready to use.
 type Stack[T any] struct {
-	last *node[T]
-	size int64
+	first *node[T]
+	size  int64
 }
 
 // New returns an empty Stack ready for use.
@@ -22,10 +24,11 @@ func New[T any]() *Stack[T] {
 
 // Push adds data to the top of the stack.
 func (s *Stack[T]) Push(data T) {
-	s.last = &node[T]{
-		previous: s.last,
-		data:     data,
+	n := node[T]{
+		data: data,
+		next: s.first,
 	}
+	s.first = &n
 	s.size++
 }
 
@@ -38,11 +41,11 @@ func (s *Stack[T]) Pop() (T, bool) {
 		return zero, false
 	}
 
-	value := s.last.data
-	s.last = s.last.previous
+	n := s.first
+	s.first = s.first.next
 	s.size--
 
-	return value, true
+	return n.data, true
 }
 
 // Peek returns the top element without removing it.
@@ -54,7 +57,7 @@ func (s *Stack[T]) Peek() (T, bool) {
 		return zero, false
 	}
 
-	return s.last.data, true
+	return s.first.data, true
 }
 
 // Len returns the number of elements currently in the stack.
@@ -65,4 +68,17 @@ func (s *Stack[T]) Len() int64 {
 // Empty reports whether the stack contains no elements.
 func (s *Stack[T]) Empty() bool {
 	return s.size == 0
+}
+
+// Values returns an iterator that drains the stack from top to bottom.
+// Each popped element is yielded once; the stack is empty after the
+// iterator is fully consumed.
+func (q *Stack[T]) Values() iter.Seq[T] {
+	return func(yield func(T) bool) {
+		for v, ok := q.Pop(); ok; v, ok = q.Pop() {
+			if !yield(v) {
+				return
+			}
+		}
+	}
 }

@@ -1,6 +1,9 @@
 package stack
 
-import "sync"
+import (
+	"iter"
+	"sync"
+)
 
 // SyncStack is a thread-safe wrapper around [Stack] that uses a read/write
 // mutex to allow concurrent reads while serialising writes.
@@ -55,4 +58,17 @@ func (s *SyncStack[T]) Empty() bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.s.Empty()
+}
+
+// Values returns an iterator that drains the stack from top to bottom.
+// Each popped element is yielded once; the stack is empty after the
+// iterator is fully consumed. It is safe for concurrent use.
+func (q *SyncStack[T]) Values() iter.Seq[T] {
+	return func(yield func(T) bool) {
+		for v, ok := q.Pop(); ok; v, ok = q.Pop() {
+			if !yield(v) {
+				return
+			}
+		}
+	}
 }
