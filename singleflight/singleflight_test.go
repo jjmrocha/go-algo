@@ -1,7 +1,6 @@
 package singleflight
 
 import (
-	"context"
 	"errors"
 	"sync"
 	"sync/atomic"
@@ -25,7 +24,7 @@ func TestDo(t *testing.T) {
 		// when
 		result, err := sf.Do("key", func() (int, error) {
 			return 42, nil
-		}).Await(context.Background())
+		}).AwaitWithContext(t.Context())
 		// then
 		assert.NoError(t, err)
 		assert.Equal(t, 42, result)
@@ -38,7 +37,7 @@ func TestDo(t *testing.T) {
 		// when
 		result, err := sf.Do("key", func() (int, error) {
 			return 0, providerErr
-		}).Await(context.Background())
+		}).AwaitWithContext(t.Context())
 		// then
 		assert.ErrorIs(t, err, providerErr)
 		assert.Equal(t, 0, result)
@@ -58,6 +57,7 @@ func TestDo(t *testing.T) {
 		results := make([]int, goroutines)
 		errs := make([]error, goroutines)
 		var ready, done sync.WaitGroup
+		ctx := t.Context()
 		// when: all goroutines call Do before the provider completes
 		for i := range goroutines {
 			ready.Add(1)
@@ -66,7 +66,7 @@ func TestDo(t *testing.T) {
 				defer done.Done()
 				f := sf.Do("key", provider)
 				ready.Done()
-				results[i], errs[i] = f.Await(context.Background())
+				results[i], errs[i] = f.AwaitWithContext(ctx)
 			}(i)
 		}
 		ready.Wait()
@@ -88,8 +88,8 @@ func TestDo(t *testing.T) {
 			return int(calls.Add(1)), nil
 		}
 		// when: two sequential calls, each after the previous completes
-		result1, err1 := sf.Do("key", provider).Await(context.Background())
-		result2, err2 := sf.Do("key", provider).Await(context.Background())
+		result1, err1 := sf.Do("key", provider).AwaitWithContext(t.Context())
+		result2, err2 := sf.Do("key", provider).AwaitWithContext(t.Context())
 		// then: provider called twice, each got its own result
 		assert.NoError(t, err1)
 		assert.NoError(t, err2)
@@ -110,8 +110,8 @@ func TestDo(t *testing.T) {
 			return 42, nil
 		}
 		// when: first call fails, second retries
-		_, firstErr := sf.Do("key", p).Await(context.Background())
-		result, err := sf.Do("key", p).Await(context.Background())
+		_, firstErr := sf.Do("key", p).AwaitWithContext(t.Context())
+		result, err := sf.Do("key", p).AwaitWithContext(t.Context())
 		// then
 		assert.ErrorIs(t, firstErr, providerErr)
 		assert.NoError(t, err)
@@ -127,8 +127,8 @@ func TestDo(t *testing.T) {
 			return int(calls.Add(1)), nil
 		}
 		// when
-		result1, err1 := sf.Do("a", provider).Await(context.Background())
-		result2, err2 := sf.Do("b", provider).Await(context.Background())
+		result1, err1 := sf.Do("a", provider).AwaitWithContext(t.Context())
+		result2, err2 := sf.Do("b", provider).AwaitWithContext(t.Context())
 		// then
 		assert.NoError(t, err1)
 		assert.NoError(t, err2)
