@@ -1,0 +1,142 @@
+package queue
+
+import (
+	"sync"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
+
+func TestNewBlockingQueue(t *testing.T) {
+	t.Run("valid capacity", func(t *testing.T) {
+		// when
+		result, err := NewBlockingQueue[int](5)
+		// then
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, 5, result.Cap())
+		assert.Equal(t, 0, result.Len())
+		assert.True(t, result.Empty())
+	})
+
+	t.Run("zero capacity returns error", func(t *testing.T) {
+		// when
+		_, err := NewBlockingQueue[int](0)
+		// then
+		assert.ErrorIs(t, err, ErrorCapacityGreaterThanZero)
+	})
+
+	t.Run("negative capacity returns error", func(t *testing.T) {
+		// when
+		_, err := NewBlockingQueue[int](-1)
+		// then
+		assert.ErrorIs(t, err, ErrorCapacityGreaterThanZero)
+	})
+}
+
+func TestBlockingQueueEnqueueDequeue(t *testing.T) {
+	// given
+	q, err := NewBlockingQueue[int](3)
+	assert.NoError(t, err)
+	q.Enqueue(10)
+	q.Enqueue(20)
+	// when
+	result := q.Dequeue()
+	// then
+	assert.Equal(t, 10, result)
+	assert.Equal(t, 1, q.Len())
+}
+
+func TestBlockingQueueFIFOOrdering(t *testing.T) {
+	// given
+	q, err := NewBlockingQueue[int](3)
+	assert.NoError(t, err)
+	q.Enqueue(1)
+	q.Enqueue(2)
+	q.Enqueue(3)
+	// when / then — FIFO order must be preserved
+	for _, expected := range []int{1, 2, 3} {
+		result := q.Dequeue()
+		assert.Equal(t, expected, result)
+	}
+}
+
+func TestBlockingQueueLen(t *testing.T) {
+	// given
+	q, err := NewBlockingQueue[int](5)
+	assert.NoError(t, err)
+	// when
+	q.Enqueue(1)
+	q.Enqueue(2)
+	// then
+	assert.Equal(t, 2, q.Len())
+}
+
+func TestBlockingQueueEmpty(t *testing.T) {
+	t.Run("empty queue", func(t *testing.T) {
+		// given
+		q, err := NewBlockingQueue[int](3)
+		assert.NoError(t, err)
+		// when / then
+		assert.True(t, q.Empty())
+	})
+
+	t.Run("non-empty queue", func(t *testing.T) {
+		// given
+		q, err := NewBlockingQueue[int](3)
+		assert.NoError(t, err)
+		q.Enqueue(1)
+		// when / then
+		assert.False(t, q.Empty())
+	})
+}
+
+func TestBlockingQueueCap(t *testing.T) {
+	// given
+	q, err := NewBlockingQueue[int](7)
+	assert.NoError(t, err)
+	// when
+	result := q.Cap()
+	// then
+	assert.Equal(t, 7, result)
+}
+
+func TestBlockingQueueFull(t *testing.T) {
+	t.Run("not full", func(t *testing.T) {
+		// given
+		q, err := NewBlockingQueue[int](3)
+		assert.NoError(t, err)
+		q.Enqueue(1)
+		// when / then
+		assert.False(t, q.Full())
+	})
+
+	t.Run("full", func(t *testing.T) {
+		// given
+		q, err := NewBlockingQueue[int](2)
+		assert.NoError(t, err)
+		q.Enqueue(1)
+		q.Enqueue(2)
+		// when / then
+		assert.True(t, q.Full())
+	})
+}
+
+func TestBlockingQueueConcurrentEnqueue(t *testing.T) {
+	// given
+	const n = 50
+	q, err := NewBlockingQueue[int](n)
+	assert.NoError(t, err)
+	var wg sync.WaitGroup
+	// when: concurrent enqueues
+	for i := range n {
+		wg.Add(1)
+		go func(v int) {
+			defer wg.Done()
+			q.Enqueue(v)
+		}(i)
+	}
+	wg.Wait()
+	// then
+	assert.Equal(t, n, q.Len())
+}
