@@ -12,7 +12,7 @@
 //	    return expensiveComputation(ctx)
 //	})
 //
-//	result, err := f.Await(ctx)
+//	result, err := f.AwaitWithContext(ctx)
 package future
 
 import (
@@ -21,7 +21,7 @@ import (
 )
 
 // Future represents the result of an asynchronous computation of type T.
-// Multiple concurrent calls to [Future.Await] are safe: all callers block
+// Multiple concurrent calls to [Future.AwaitWithContext] are safe: all callers block
 // until the result is ready and then all receive the same value and error.
 // The result is cached, so calls after the computation completes return immediately.
 type Future[T any] struct {
@@ -31,7 +31,7 @@ type Future[T any] struct {
 }
 
 // newFuture creates an uninitialised Future with a signal channel that is
-// closed by resolve once the computation completes, unblocking all Await callers.
+// closed by resolve once the computation completes, unblocking all AwaitWithContext callers.
 func newFuture[T any]() *Future[T] {
 	return &Future[T]{
 		done: make(chan struct{}),
@@ -60,23 +60,24 @@ func Async[T any](provider func() (T, error)) *Future[T] {
 	return f
 }
 
-// resolve stores the computation result and unblocks all Await callers by
-// closing the done channel. It must be called exactly once per Future.
+// resolve stores the computation result and unblocks all callers blocked in
+// Await, AwaitWithContext, or AwaitWithTimeout by closing the done channel.
+// It must be called exactly once per Future.
 func (f *Future[T]) resolve(val T, err error) {
 	f.val, f.err = val, err
 	close(f.done)
 }
 
-// Await blocks until the async computation finishes and returns its result,
+// AwaitWithContext blocks until the async computation finishes and returns its result,
 // or until ctx is cancelled — whichever happens first.
 //
-// Multiple goroutines may call Await on the same Future concurrently. All are
+// Multiple goroutines may call AwaitWithContext on the same Future concurrently. All are
 // unblocked when the result is ready and all receive the same value and error.
 //
-// If ctx is cancelled before the computation completes, Await returns the zero
+// If ctx is cancelled before the computation completes, AwaitWithContext returns the zero
 // value of T together with ctx.Err(). The Future remains live: a subsequent
 // call with a fresh context will still receive the result once it is available.
-func (f *Future[T]) Await(ctx context.Context) (T, error) {
+func (f *Future[T]) AwaitWithContext(ctx context.Context) (T, error) {
 	select {
 	case <-f.done:
 		return f.val, f.err
@@ -89,7 +90,31 @@ func (f *Future[T]) Await(ctx context.Context) (T, error) {
 // AwaitWithTimeout blocks until the async computation finishes and returns its
 // result, or until the given duration elapses — whichever happens first.
 func (f *Future[T]) AwaitWithTimeout(d time.Duration) (T, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), d)
-	defer cancel()
-	return f.Await(ctx)
+	t := time.NewTimer(d)
+	defer t.Stop()
+
+	select {
+	case <-f.done:
+		return f.val, f.err
+	case <-t.C:
+		var zero T
+		return zero, context.DeadlineExceeded
+	}
+}
+
+// Await blocks until the async computation finishes and returns its result.
+// It is equivalent to calling AwaitWithContext with context.Background().
+func (f *Future[T]) Await() (T, error) {
+	<-f.done
+	return f.val, f.err
+}
+
+// Done reports whether the async computation has completed.
+func (f *Future[T]) Done() bool {
+	select {
+	case <-f.done:
+		return true
+	default:
+		return false
+	}
 }

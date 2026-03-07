@@ -57,7 +57,7 @@ func TestAsyncWithWait(t *testing.T) {
 			// given
 			f := AsyncWithContext(ctx, asyncFuncMaker(tt.value, tt.error))
 			// when
-			result, err := f.Await(ctx)
+			result, err := f.AwaitWithContext(ctx)
 			// then
 			if tt.expectedError != nil {
 				assert.ErrorIs(t, err, tt.expectedError)
@@ -75,7 +75,7 @@ func TestAsyncWithTimeout(t *testing.T) {
 	defer cancel()
 	// when
 	_, result := AsyncWithContext(ctx, asyncFuncMaker(1, nil)).
-		Await(ctx)
+		AwaitWithContext(ctx)
 	// then
 	assert.ErrorIs(t, result, context.DeadlineExceeded)
 }
@@ -86,7 +86,7 @@ func TestAsyncWithCancel(t *testing.T) {
 	cancel()
 	// when
 	_, result := AsyncWithContext(ctx, asyncFuncMaker(1, nil)).
-		Await(ctx)
+		AwaitWithContext(ctx)
 	// then
 	assert.ErrorIs(t, result, context.Canceled)
 }
@@ -96,8 +96,8 @@ func TestAwaitCanBeCalledMultipleTimes(t *testing.T) {
 	ctx := t.Context()
 	f := AsyncWithContext(ctx, asyncFuncMaker(42, nil))
 	// when: await the same future twice sequentially
-	result1, err1 := f.Await(ctx)
-	result2, err2 := f.Await(ctx)
+	result1, err1 := f.AwaitWithContext(ctx)
+	result2, err2 := f.AwaitWithContext(ctx)
 	// then: both calls return the same result
 	assert.NoError(t, err1)
 	assert.NoError(t, err2)
@@ -111,13 +111,13 @@ func TestAwaitContextCancelledThenRetried(t *testing.T) {
 		time.Sleep(50 * time.Millisecond)
 		return 7, nil
 	})
-	// when: first Await is cancelled immediately
+	// when: first AwaitWithContext is cancelled immediately
 	cancelledCtx, cancel := context.WithCancel(t.Context())
 	cancel()
-	_, err := f.Await(cancelledCtx)
+	_, err := f.AwaitWithContext(cancelledCtx)
 	assert.ErrorIs(t, err, context.Canceled)
-	// then: second Await with a fresh context still receives the result
-	result, err := f.Await(t.Context())
+	// then: second AwaitWithContext with a fresh context still receives the result
+	result, err := f.AwaitWithContext(t.Context())
 	assert.NoError(t, err)
 	assert.Equal(t, 7, result)
 }
@@ -135,7 +135,7 @@ func TestAwaitConcurrent(t *testing.T) {
 		wg.Add(1)
 		go func(idx int) {
 			defer wg.Done()
-			results[idx], errs[idx] = f.Await(ctx)
+			results[idx], errs[idx] = f.AwaitWithContext(ctx)
 		}(i)
 	}
 	wg.Wait()
@@ -181,11 +181,69 @@ func TestMultipleConsumers(t *testing.T) {
 		return expected, nil
 	})
 	// when
-	result1, err1 := f.Await(t.Context())
-	result2, err2 := f.Await(t.Context())
+	result1, err1 := f.AwaitWithContext(t.Context())
+	result2, err2 := f.AwaitWithContext(t.Context())
 	// then
 	assert.NoError(t, err1)
 	assert.NoError(t, err2)
 	assert.Equal(t, expected, result1)
 	assert.Equal(t, expected, result2)
+}
+
+func TestAwait(t *testing.T) {
+	t.Run("returns result when computation completes", func(t *testing.T) {
+		// given
+		f := Async(func() (int, error) {
+			return 42, nil
+		})
+		// when
+		result, err := f.Await()
+		// then
+		assert.NoError(t, err)
+		assert.Equal(t, 42, result)
+	})
+
+	t.Run("returns error when computation fails", func(t *testing.T) {
+		// given
+		expectedErr := errors.New("compute failed")
+		f := Async(func() (int, error) {
+			return 0, expectedErr
+		})
+		// when
+		result, err := f.Await()
+		// then
+		assert.ErrorIs(t, err, expectedErr)
+		assert.Equal(t, 0, result)
+	})
+}
+
+func TestDone(t *testing.T) {
+	t.Run("false before computation completes", func(t *testing.T) {
+		// given
+		started := make(chan struct{})
+		block := make(chan struct{})
+		f := Async(func() (int, error) {
+			close(started)
+			<-block
+			return 1, nil
+		})
+		<-started
+		// when
+		result := f.Done()
+		close(block)
+		// then
+		assert.False(t, result)
+	})
+
+	t.Run("true after computation completes", func(t *testing.T) {
+		// given
+		f := Async(func() (int, error) {
+			return 1, nil
+		})
+		_, _ = f.Await()
+		// when
+		result := f.Done()
+		// then
+		assert.True(t, result)
+	})
 }
