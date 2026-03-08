@@ -23,7 +23,7 @@ func Distinct[T comparable](input []T) []T {
 // Each new iteration starts with a fresh seen set.
 func DistinctSeq[T comparable](seq iter.Seq[T]) iter.Seq[T] {
 	return func(yield func(T) bool) {
-		seen := make(map[T]struct{})
+		seen := make(map[T]struct{}, defaultSize)
 
 		for v := range seq {
 			if _, ok := seen[v]; !ok {

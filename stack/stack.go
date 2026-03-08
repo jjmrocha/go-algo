@@ -2,7 +2,10 @@
 // backed by a singly-linked list. It supports any element type via Go generics.
 package stack
 
-import "iter"
+import (
+	"iter"
+	"sync"
+)
 
 // node is an internal linked-list element that holds a value and a pointer to
 // the previous node in the chain.
@@ -12,23 +15,29 @@ type node[T any] struct {
 }
 
 // Stack is a generic LIFO data structure. The zero value is ready to use.
+// A Stack must not be copied after first use.
 type Stack[T any] struct {
+	pool  sync.Pool
 	first *node[T]
 	size  int64
 }
 
 // New returns an empty Stack ready for use.
 func New[T any]() *Stack[T] {
-	return &Stack[T]{}
+	s := Stack[T]{}
+	s.pool.New = func() any {
+		return &node[T]{}
+	}
+
+	return &s
 }
 
 // Push adds data to the top of the stack.
 func (s *Stack[T]) Push(data T) {
-	n := node[T]{
-		data: data,
-		next: s.first,
-	}
-	s.first = &n
+	n := s.pool.Get().(*node[T])
+	n.data = data
+	n.next = s.first
+	s.first = n
 	s.size++
 }
 
@@ -42,10 +51,13 @@ func (s *Stack[T]) Pop() (T, bool) {
 	}
 
 	n := s.first
-	s.first = s.first.next
+	s.first = n.next
 	s.size--
 
-	return n.data, true
+	val := n.data
+	s.pool.Put(n)
+
+	return val, true
 }
 
 // Peek returns the top element without removing it.

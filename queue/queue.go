@@ -3,7 +3,10 @@
 // type via Go generics.
 package queue
 
-import "iter"
+import (
+	"iter"
+	"sync"
+)
 
 type node[T any] struct {
 	next *node[T]
@@ -11,7 +14,9 @@ type node[T any] struct {
 }
 
 // Queue is a generic FIFO data structure. The zero value is ready to use.
+// A Queue must not be copied after first use.
 type Queue[T any] struct {
+	pool  sync.Pool
 	first *node[T]
 	last  *node[T]
 	size  int64
@@ -19,14 +24,19 @@ type Queue[T any] struct {
 
 // New returns an empty Queue ready for use.
 func New[T any]() *Queue[T] {
-	return &Queue[T]{}
+	q := Queue[T]{}
+	q.pool.New = func() any {
+		return &node[T]{}
+	}
+
+	return &q
 }
 
 // Enqueue adds data to the back of the queue.
 func (q *Queue[T]) Enqueue(data T) {
-	n := &node[T]{
-		data: data,
-	}
+	n := q.pool.Get().(*node[T])
+	n.data = data
+	n.next = nil
 
 	if q.size == 0 {
 		q.first = n
@@ -48,11 +58,18 @@ func (q *Queue[T]) Dequeue() (T, bool) {
 		return zero, false
 	}
 
-	v := q.first.data
-	q.first = q.first.next
+	n := q.first
+	q.first = n.next
 	q.size--
 
-	return v, true
+	if q.size == 0 {
+		q.last = nil // clear stale tail pointer when queue becomes empty
+	}
+
+	val := n.data
+	q.pool.Put(n)
+
+	return val, true
 }
 
 // Len returns the number of elements currently in the queue.

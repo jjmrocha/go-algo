@@ -47,6 +47,7 @@ func NewLRUCache[K comparable, V any](capacity int) (*LRUCache[K, V], error) {
 func (c *LRUCache[K, V]) Get(key K) (V, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+
 	return c.load(key)
 }
 
@@ -55,6 +56,7 @@ func (c *LRUCache[K, V]) Get(key K) (V, bool) {
 func (c *LRUCache[K, V]) Put(key K, value V) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+
 	c.write(key, value)
 }
 
@@ -62,6 +64,7 @@ func (c *LRUCache[K, V]) Put(key K, value V) {
 func (c *LRUCache[K, V]) Delete(key K) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+
 	c.remove(key)
 }
 
@@ -69,6 +72,7 @@ func (c *LRUCache[K, V]) Delete(key K) {
 func (c *LRUCache[K, V]) Len() int {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
+
 	return len(c.kv)
 }
 
@@ -76,6 +80,7 @@ func (c *LRUCache[K, V]) Len() int {
 func (c *LRUCache[K, V]) Exists(key K) bool {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
+
 	_, exists := c.kv[key]
 	return exists
 }
@@ -86,14 +91,14 @@ func (c *LRUCache[K, V]) Cap() int {
 }
 
 func (c *LRUCache[K, V]) load(key K) (V, bool) {
-	node := c.kv[key]
-	if node == nil {
+	n := c.kv[key]
+	if n == nil {
 		var zero V
 		return zero, false
 	}
 
-	c.moveToHead(node)
-	return node.value, true
+	c.moveToHead(n)
+	return n.value, true
 }
 
 func (c *LRUCache[K, V]) moveToHead(n *node[K, V]) {
