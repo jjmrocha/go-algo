@@ -213,6 +213,36 @@ value, err  = lp.Get("key")                // blocks indefinitely
 lp.Invalidate("key")
 ```
 
+### `sort` — Generic in-place sorting and shuffling
+
+```go
+import "github.com/jjmrocha/go-algo/sort"
+```
+
+All sort functions take a `Comparator[T]` that returns `Before`, `Equal`, or `After`:
+
+```go
+asc := func(a, b int) sort.Order {
+    if a < b { return sort.Before }
+    if a > b { return sort.After }
+    return sort.Equal
+}
+
+arr := []int{4, 3, 6, 1, 5, 2}
+
+sort.Insertion(arr, asc) // O(n²) — stable, good for small or nearly-sorted arrays
+sort.Shell(arr, asc)     // O(n log² n) — Ciura gap sequence, fast in practice
+sort.Quick(arr, asc)     // O(n log n) avg — 3-way partition + median-of-three pivot
+```
+
+`Shuffle` randomly permutes a slice using a cryptographically secure source:
+
+```go
+err := sort.Shuffle(arr) // Fisher-Yates shuffle via crypto/rand
+```
+
+---
+
 ## License
 
 This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.

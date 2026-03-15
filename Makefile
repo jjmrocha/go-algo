@@ -6,6 +6,7 @@ help:
 	@echo ""
 	@echo "Targets:"
 	@echo "  test         Run all tests"
+	@echo "  bench        Run benchmarks"
 	@echo "  lint         Run golangci-lint"
 	@echo "  deps         Update dependencies"
 	@echo "  tidy         Tidy go.mod"
