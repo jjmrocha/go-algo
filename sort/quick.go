@@ -30,7 +30,7 @@ func Quick[T any](arr []T, cmp Comparator[T]) {
 		Quick[T](arr[:first], cmp)
 	}
 
-	if last < len(arr)-1 {
+	if last < len(arr)-2 {
 		Quick[T](arr[last+1:], cmp)
 	}
 }

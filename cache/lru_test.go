@@ -3,6 +3,7 @@ package cache
 import (
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -10,9 +11,9 @@ import (
 // mustNewLRUCache is a test helper that creates an LRUCache or fails the test.
 func mustNewLRUCache[K comparable, V any](t testing.TB, capacity int) *LRUCache[K, V] {
 	t.Helper()
-	c, err := NewLRUCache[K, V](capacity)
+	c, err := NewLRUCache[K, V](WithCapacity(capacity))
 	if err != nil {
-		t.Fatalf("NewLRUCache(%d): unexpected error: %v", capacity, err)
+		t.Fatalf("NewLRUCache(WithCapacity(%d)): unexpected error: %v", capacity, err)
 	}
 	return c
 }
@@ -26,12 +27,36 @@ func TestNewLRUCache(t *testing.T) {
 		assert.Equal(t, 0, result.Len())
 	})
 
+	t.Run("no options", func(t *testing.T) {
+		// when
+		_, err := NewLRUCache[string, int]()
+		// then
+		assert.ErrorIs(t, err, ErrInvalidCapacity)
+	})
+
 	t.Run("invalid cap", func(t *testing.T) {
 		for _, cap := range []int{0, -1, -100} {
 			// when
-			_, err := NewLRUCache[string, int](cap)
+			_, err := NewLRUCache[string, int](WithCapacity(cap))
 			// then
 			assert.ErrorIs(t, err, ErrInvalidCapacity, "cap %d", cap)
+		}
+	})
+
+	t.Run("valid cap and ttl", func(t *testing.T) {
+		// when
+		result, err := NewLRUCache[string, int](WithCapacity(3), WithTTL(time.Second))
+		// then
+		assert.NoError(t, err)
+		assert.Equal(t, 3, result.Cap())
+	})
+
+	t.Run("invalid ttl", func(t *testing.T) {
+		for _, ttl := range []time.Duration{0, -time.Second} {
+			// when
+			_, err := NewLRUCache[string, int](WithCapacity(3), WithTTL(ttl))
+			// then
+			assert.ErrorIs(t, err, ErrInvalidTTL, "ttl %v", ttl)
 		}
 	})
 }
@@ -231,6 +256,78 @@ func TestLRUCacheConcurrentAccess(t *testing.T) {
 		}(i)
 	}
 	wg.Wait()
-	// then: kv len must be within cap and not corrupt
+	// then: cache len must be within cap and not corrupt
 	assert.LessOrEqual(t, c.Len(), c.Cap())
+}
+
+// ---------- TTL ----------
+
+func TestLRUCacheTTLExpiry(t *testing.T) {
+	t.Run("Get returns false after TTL", func(t *testing.T) {
+		// given
+		c, err := NewLRUCache[string, int](WithCapacity(3), WithTTL(20*time.Millisecond))
+		assert.NoError(t, err)
+		c.Put("a", 1)
+		// when: wait for TTL to elapse
+		time.Sleep(40 * time.Millisecond)
+		result, ok := c.Get("a")
+		// then
+		assert.False(t, ok)
+		assert.Equal(t, 0, result)
+	})
+
+	t.Run("Exists returns false after TTL", func(t *testing.T) {
+		// given
+		c, err := NewLRUCache[string, int](WithCapacity(3), WithTTL(20*time.Millisecond))
+		assert.NoError(t, err)
+		c.Put("a", 1)
+		// when: wait for TTL to elapse
+		time.Sleep(40 * time.Millisecond)
+		result := c.Exists("a")
+		// then
+		assert.False(t, result)
+	})
+
+	t.Run("Get before TTL returns value", func(t *testing.T) {
+		// given
+		c, err := NewLRUCache[string, int](WithCapacity(3), WithTTL(time.Hour))
+		assert.NoError(t, err)
+		c.Put("a", 42)
+		// when
+		result, ok := c.Get("a")
+		// then
+		assert.True(t, ok)
+		assert.Equal(t, 42, result)
+	})
+
+	t.Run("Put resets TTL on update", func(t *testing.T) {
+		// given
+		c, err := NewLRUCache[string, int](WithCapacity(3), WithTTL(60*time.Millisecond))
+		assert.NoError(t, err)
+		c.Put("a", 1)
+		// when: update before TTL elapses resets the clock
+		time.Sleep(40 * time.Millisecond)
+		c.Put("a", 2)
+		time.Sleep(40 * time.Millisecond)
+		// then: 40+40=80ms since first write, but only 40ms since last write — still live
+		result, ok := c.Get("a")
+		assert.True(t, ok)
+		assert.Equal(t, 2, result)
+	})
+
+	t.Run("expired entry frees slot for new entry", func(t *testing.T) {
+		// given: cap 1
+		c, err := NewLRUCache[string, int](WithCapacity(1), WithTTL(20*time.Millisecond))
+		assert.NoError(t, err)
+		c.Put("a", 1)
+		// when: wait for a to expire, then put b
+		time.Sleep(40 * time.Millisecond)
+		c.Put("b", 2)
+		// then: b is accessible and a is gone
+		result, ok := c.Get("b")
+		assert.True(t, ok)
+		assert.Equal(t, 2, result)
+		_, ok = c.Get("a")
+		assert.False(t, ok)
+	})
 }

@@ -5,6 +5,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -12,9 +13,9 @@ import (
 // mustNewLRUWithProvider is a test helper that creates an LRUProvider or fails the test.
 func mustNewLRUWithProvider[K comparable, V any](t testing.TB, capacity int, p Provider[K, V]) *LRUProvider[K, V] {
 	t.Helper()
-	lp, err := NewLRUWithProvider[K, V](capacity, p)
+	lp, err := NewLRUWithProvider[K, V](p, WithCapacity(capacity))
 	if err != nil {
-		t.Fatalf("NewLRUWithProvider(%d): unexpected error: %v", capacity, err)
+		t.Fatalf("NewLRUWithProvider(WithCapacity(%d)): unexpected error: %v", capacity, err)
 	}
 	return lp
 }
@@ -33,18 +34,36 @@ func counterProvider[K comparable](calls *atomic.Int32) Provider[K, K] {
 func TestNewLRUWithProvider(t *testing.T) {
 	t.Run("nil provider", func(t *testing.T) {
 		// when
-		_, result := NewLRUWithProvider[string, int](3, nil)
+		_, result := NewLRUWithProvider[string, int](nil, WithCapacity(3))
 		// then
 		assert.ErrorIs(t, result, ErrNilProvider)
+	})
+
+	t.Run("no options", func(t *testing.T) {
+		p := func(_ string) (int, error) { return 0, nil }
+		// when
+		_, err := NewLRUWithProvider[string, int](p)
+		// then
+		assert.ErrorIs(t, err, ErrInvalidCapacity)
 	})
 
 	t.Run("invalid cap", func(t *testing.T) {
 		p := func(_ string) (int, error) { return 0, nil }
 		for _, cap := range []int{0, -1} {
 			// when
-			_, err := NewLRUWithProvider[string, int](cap, p)
+			_, err := NewLRUWithProvider[string, int](p, WithCapacity(cap))
 			// then
 			assert.ErrorIs(t, err, ErrInvalidCapacity, "cap %d", cap)
+		}
+	})
+
+	t.Run("invalid ttl", func(t *testing.T) {
+		p := func(_ string) (int, error) { return 0, nil }
+		for _, ttl := range []time.Duration{0, -time.Second} {
+			// when
+			_, err := NewLRUWithProvider[string, int](p, WithCapacity(3), WithTTL(ttl))
+			// then
+			assert.ErrorIs(t, err, ErrInvalidTTL, "ttl %v", ttl)
 		}
 	})
 
@@ -202,6 +221,26 @@ func TestLRUProviderConcurrentGet(t *testing.T) {
 		}(i)
 	}
 	wg.Wait()
-	// then: kv is not corrupted and len is within cap
+	// then: cache is not corrupted and len is within cap
 	assert.LessOrEqual(t, lp.Len(), lp.Cap())
+}
+
+// ---------- TTL ----------
+
+func TestLRUProviderTTLExpiry(t *testing.T) {
+	t.Run("expired entry causes provider re-call", func(t *testing.T) {
+		// given
+		var calls atomic.Int32
+		lp, err := NewLRUWithProvider(counterProvider[string](&calls), WithCapacity(3), WithTTL(20*time.Millisecond))
+		assert.NoError(t, err)
+		lp.GetWithContext(t.Context(), "x") //nolint:errcheck
+		assert.Equal(t, int32(1), calls.Load())
+		// when: wait for TTL to elapse, then Get again
+		time.Sleep(40 * time.Millisecond)
+		result, err := lp.GetWithContext(t.Context(), "x")
+		// then: provider is called again since entry expired
+		assert.NoError(t, err)
+		assert.Equal(t, "x", result)
+		assert.Equal(t, int32(2), calls.Load())
+	})
 }

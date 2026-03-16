@@ -1,16 +1,25 @@
-// Package kv provides in-memory caching implementations.
+// Package cache provides in-memory caching implementations.
 package cache
 
 import (
-	"errors"
 	"sync"
+	"time"
 )
 
 type node[K comparable, V any] struct {
-	key   K
-	value V
-	prev  *node[K, V]
-	next  *node[K, V]
+	key    K
+	value  V
+	expire time.Time
+	prev   *node[K, V]
+	next   *node[K, V]
+}
+
+func (n *node[K, V]) expired() bool {
+	if n.expire.IsZero() {
+		return false
+	}
+
+	return time.Now().After(n.expire)
 }
 
 // LRUCache is a thread-safe, generic Least Recently Used (LRU) kv.
@@ -20,24 +29,28 @@ type node[K comparable, V any] struct {
 // K must be a comparable type; V can be any type.
 type LRUCache[K comparable, V any] struct {
 	cap  int
+	ttl  time.Duration
 	mu   sync.RWMutex
 	kv   map[K]*node[K, V]
 	head *node[K, V]
 	tail *node[K, V]
 }
 
-// ErrInvalidCapacity is returned by NewLRUCache and NewLRUWithProvider when
-// the given cap is less than or equal to zero.
-var ErrInvalidCapacity = errors.New("cap must be greater than zero")
-
-// NewLRUCache creates a new LRUCache with the given cap.
-func NewLRUCache[K comparable, V any](capacity int) (*LRUCache[K, V], error) {
-	if capacity <= 0 {
-		return nil, ErrInvalidCapacity
+// NewLRUCache creates a new LRUCache configured by the supplied options.
+// [WithCapacity] is required; [WithTTL] is optional.
+//
+// Returns [ErrInvalidCapacity] if [WithCapacity] is not provided or its value
+// is less than or equal to zero. Returns [ErrInvalidTTL] if [WithTTL] is
+// provided with a value less than or equal to zero.
+func NewLRUCache[K comparable, V any](opts ...Option) (*LRUCache[K, V], error) {
+	cfg, err := applyOptions(opts)
+	if err != nil {
+		return nil, err
 	}
 
 	return &LRUCache[K, V]{
-		cap: capacity,
+		cap: cfg.capacity,
+		ttl: cfg.ttl,
 		kv:  make(map[K]*node[K, V]),
 	}, nil
 }
@@ -52,7 +65,7 @@ func (c *LRUCache[K, V]) Get(key K) (V, bool) {
 }
 
 // Put inserts or updates the value for key, marking it as most recently used.
-// If the kv is at cap and a new key is inserted, the least recently used entry is evicted.
+// If the cache is at capacity and a new key is inserted, the least recently used entry is evicted.
 func (c *LRUCache[K, V]) Put(key K, value V) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -68,7 +81,9 @@ func (c *LRUCache[K, V]) Delete(key K) {
 	c.remove(key)
 }
 
-// Len returns the number of entries currently in the kv.
+// Len returns the number of entries currently in the cache.
+// When TTL is configured, this count may include recently-expired entries that
+// have not yet been lazily evicted by a Get call.
 func (c *LRUCache[K, V]) Len() int {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
@@ -76,16 +91,16 @@ func (c *LRUCache[K, V]) Len() int {
 	return len(c.kv)
 }
 
-// Exists reports whether key is present in the kv without affecting LRU order.
+// Exists reports whether key is present in the cache without affecting LRU order.
 func (c *LRUCache[K, V]) Exists(key K) bool {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	_, exists := c.kv[key]
-	return exists
+	node, exists := c.kv[key]
+	return exists && !node.expired()
 }
 
-// Cap returns the maximum number of entries the kv can hold.
+// Cap returns the maximum number of entries the cache can hold.
 func (c *LRUCache[K, V]) Cap() int {
 	return c.cap
 }
@@ -93,6 +108,12 @@ func (c *LRUCache[K, V]) Cap() int {
 func (c *LRUCache[K, V]) load(key K) (V, bool) {
 	n := c.kv[key]
 	if n == nil {
+		var zero V
+		return zero, false
+	}
+
+	if n.expired() {
+		c.remove(key)
 		var zero V
 		return zero, false
 	}
@@ -135,12 +156,17 @@ func (c *LRUCache[K, V]) moveToHead(n *node[K, V]) {
 func (c *LRUCache[K, V]) write(key K, value V) {
 	if node, exists := c.kv[key]; exists {
 		node.value = value
+		node.expire = c.expiresAt()
 		c.moveToHead(node)
 		return
 	}
 
 	// Create a new node and add it to the head
-	newNode := &node[K, V]{key: key, value: value}
+	newNode := &node[K, V]{
+		key:    key,
+		value:  value,
+		expire: c.expiresAt(),
+	}
 	c.kv[key] = newNode
 
 	if c.head == nil {
@@ -188,4 +214,12 @@ func (c *LRUCache[K, V]) remove(key K) {
 
 	// Remove the node from the kv
 	delete(c.kv, key)
+}
+
+func (c *LRUCache[K, V]) expiresAt() time.Time {
+	if c.ttl == 0 {
+		return time.Time{}
+	}
+
+	return time.Now().Add(c.ttl)
 }

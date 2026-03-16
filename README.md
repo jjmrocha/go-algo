@@ -180,12 +180,18 @@ Multiple goroutines can await the same Future concurrently — all receive the s
 
 ### `cache` — LRU cache
 
+Both cache types are configured using functional options. `WithCapacity` is required;
+`WithTTL` is optional and applies an expiry to every entry.
+
 #### Direct cache — `LRUCache[K, V]`
 
 ```go
 import "github.com/jjmrocha/go-algo/cache"
 
-c, err := cache.NewLRUCache[string, int](100)
+c, err := cache.NewLRUCache[string, int](
+    cache.WithCapacity(100),
+    cache.WithTTL(5 * time.Minute), // optional — omit for no expiry
+)
 
 c.Put("hits", 42)
 v, ok := c.Get("hits") // 42, true — promotes to MRU
@@ -203,7 +209,10 @@ provider := func(key string) (string, error) {
     return fetchFromDB(key)
 }
 
-lp, err := cache.NewLRUWithProvider[string, string](100, provider)
+lp, err := cache.NewLRUWithProvider(provider,
+    cache.WithCapacity(100),
+    cache.WithTTL(5 * time.Minute), // optional
+)
 
 // Cache miss → provider called once, result shared with concurrent callers.
 value, err := lp.GetWithContext(ctx, "key") // context-aware
