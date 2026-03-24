@@ -53,6 +53,31 @@ v := bq.Dequeue()                          // blocks if empty
 
 ---
 
+### `deque` — Generic double-ended queue
+
+```go
+import "github.com/jjmrocha/go-algo/deque"
+
+d := deque.New[int]()
+d.PushBack(1)
+d.PushBack(2)
+d.PushFront(0)        // logical order front→back: 0, 1, 2
+
+v, ok := d.PopFront() // 0, true
+v, ok  = d.PopBack()  // 2, true
+
+v, ok = d.PeekFront() // 1, true (no removal)
+v, ok = d.PeekBack()  // 1, true (no removal)
+
+for v := range d.Values() { /* iterates front to back; deque is not modified */ }
+```
+
+Backed by a dynamically resized ring buffer with O(1) amortised push and pop at both ends.
+
+`SyncDeque[T]` provides the same API safe for concurrent use.
+
+---
+
 ### `sets` — Generic set with set-algebra operations
 
 ```go
