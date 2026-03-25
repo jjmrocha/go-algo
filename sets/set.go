@@ -23,8 +23,8 @@ import (
 type Set[T comparable] map[T]struct{}
 
 // New returns an empty, initialized Set ready for use.
-func New[T comparable]() Set[T] {
-	return make(Set[T])
+func New[T comparable](items ...T) Set[T] {
+	return Of(items)
 }
 
 // Of creates a Set containing the elements of items, silently

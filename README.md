@@ -3,7 +3,7 @@
 A collection of generic algorithms and data structures implemented in Go, designed to be reused across projects.
 Each package is independently importable and carries no cross-package dependencies (except `cache`, which uses `future` and `singleflight` internally).
 
-Requires **Go 1.23+** (uses `iter.Seq` / range-over-func).
+Requires **Go 1.25+** (uses `iter.Seq` / range-over-func, `min` builtin, `maps.Copy`).
 
 ## Installation
 
@@ -98,6 +98,44 @@ for v := range a.Values() { /* ... */ }
 ```
 
 A nil `Set` is safe for all read operations (`Contains`, `Len`, `ToSlice`).
+
+---
+
+### `bag` — Generic multiset
+
+A `Bag` tracks how many times each element has been added, allowing duplicates
+unlike `Set`. All operations are O(1) amortised.
+
+```go
+import "github.com/jjmrocha/go-algo/bag"
+
+b := bag.New[string]()
+b.Add("a", "b", "a")  // "a" added twice
+
+b.Contains("a") // true
+b.Count("a")    // 2
+b.Len()         // 3 — total items, counting duplicates
+
+b.Remove("a")   // decrements; "a" now appears once
+b.Remove("a")   // removes "a" entirely
+
+b.Unique()      // []string{"b"} — one entry per distinct element
+b.ToSlice()     // []string{"b"} — each item repeated according to its count
+
+for v := range b.Values() { /* yields each item repeated by its count */ }
+```
+
+Set-algebra operations on counts:
+
+```go
+a := bag.Of([]int{1, 2, 2, 3})
+c := bag.Of([]int{2, 2, 2, 3, 3})
+
+a.Union(c)        // counts summed:   {1:1, 2:4, 3:3}
+a.Intersection(c) // minimum counts:  {2:2, 3:1}
+```
+
+A nil `Bag` is safe for read operations (`Contains`, `Len`, `Count`, `Empty`).
 
 ---
 
@@ -246,6 +284,8 @@ value, err  = lp.Get("key")                // blocks indefinitely
 // Force re-fetch on next Get.
 lp.Invalidate("key")
 ```
+
+---
 
 ### `sort` — Generic in-place sorting and shuffling
 

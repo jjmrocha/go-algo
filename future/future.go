@@ -60,14 +60,6 @@ func Async[T any](provider func() (T, error)) *Future[T] {
 	return f
 }
 
-// resolve stores the computation result and unblocks all callers blocked in
-// Await, AwaitWithContext, or AwaitWithTimeout by closing the done channel.
-// It must be called exactly once per Future.
-func (f *Future[T]) resolve(val T, err error) {
-	f.val, f.err = val, err
-	close(f.done)
-}
-
 // AwaitWithContext blocks until the async computation finishes and returns its result,
 // or until ctx is cancelled — whichever happens first.
 //
@@ -117,4 +109,12 @@ func (f *Future[T]) Done() bool {
 	default:
 		return false
 	}
+}
+
+// resolve stores the computation result and unblocks all callers blocked in
+// Await, AwaitWithContext, or AwaitWithTimeout by closing the done channel.
+// It must be called exactly once per Future.
+func (f *Future[T]) resolve(val T, err error) {
+	f.val, f.err = val, err
+	close(f.done)
 }

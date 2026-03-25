@@ -8,6 +8,9 @@ import (
 	"github.com/jjmrocha/go-algo/singleflight"
 )
 
+// ErrNilProvider is returned by [NewLRUWithProvider] when a nil provider is supplied.
+var ErrNilProvider = errors.New("provider cannot be nil")
+
 // Provider is a function that fetches the value for key on a cache miss.
 // It returns the fetched value and nil on success, or the zero value and a
 // non-nil error on failure. Errors are not cached; a failed read will be
@@ -29,9 +32,6 @@ type LRUProvider[K comparable, V any] struct {
 	sf       *singleflight.SingleFlight[K, V]
 	provider Provider[K, V]
 }
-
-// ErrNilProvider is returned by [NewLRUWithProvider] when a nil provider is supplied.
-var ErrNilProvider = errors.New("provider cannot be nil")
 
 // NewLRUWithProvider creates an [LRUProvider] backed by an LRU cache configured
 // by the supplied options. [WithCapacity] is required; [WithTTL] is optional.
@@ -85,21 +85,6 @@ func (lp *LRUProvider[K, V]) Get(key K) (V, error) {
 	return lp.read(key).Await()
 }
 
-func (lp *LRUProvider[K, V]) read(key K) *future.Future[V] {
-	fn := func() (V, error) {
-		value, err := lp.provider(key)
-		if err != nil {
-			var zero V
-			return zero, err
-		}
-
-		lp.cache.Put(key, value)
-		return value, nil
-	}
-
-	return lp.sf.Do(key, fn)
-}
-
 // Exists reports whether key is currently held in the cache.
 // It does not affect LRU order.
 func (lp *LRUProvider[K, V]) Exists(key K) bool {
@@ -125,4 +110,19 @@ func (lp *LRUProvider[K, V]) Len() int {
 // Cap returns the maximum number of entries the cache can hold.
 func (lp *LRUProvider[K, V]) Cap() int {
 	return lp.cache.Cap()
+}
+
+func (lp *LRUProvider[K, V]) read(key K) *future.Future[V] {
+	fn := func() (V, error) {
+		value, err := lp.provider(key)
+		if err != nil {
+			var zero V
+			return zero, err
+		}
+
+		lp.cache.Put(key, value)
+		return value, nil
+	}
+
+	return lp.sf.Do(key, fn)
 }

@@ -7,7 +7,7 @@ import (
 	"iter"
 )
 
-const defaultCap = 8
+const defaultCap = 64
 
 // Deque is a generic double-ended queue backed by a ring buffer.
 // Use New to create a Deque; the zero value is not ready for use.
@@ -150,6 +150,20 @@ func (d *Deque[T]) Values() iter.Seq[T] {
 			current = d.next(current)
 		}
 	}
+}
+
+// ToSlice returns a new slice containing all elements from front to back.
+func (d *Deque[T]) ToSlice() []T {
+	slice := make([]T, d.size)
+
+	current := d.first
+
+	for i := range d.size {
+		slice[i] = d.items[current]
+		current = d.next(current)
+	}
+
+	return slice
 }
 
 func (d *Deque[T]) resize(newCap int) {

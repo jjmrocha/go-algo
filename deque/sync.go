@@ -1,6 +1,8 @@
 package deque
 
 import (
+	"iter"
+	"slices"
 	"sync"
 )
 
@@ -82,4 +84,18 @@ func (d *SyncDeque[T]) Empty() bool {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 	return d.d.Empty()
+}
+
+// Values returns an iterator over all elements from front to back.
+// It takes a snapshot of the deque and is safe for concurrent use.
+func (d *SyncDeque[T]) Values() iter.Seq[T] {
+	return slices.Values(d.ToSlice())
+}
+
+// ToSlice returns a new slice containing all elements from front to back.
+// It is safe for concurrent use.
+func (d *SyncDeque[T]) ToSlice() []T {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	return d.d.ToSlice()
 }
