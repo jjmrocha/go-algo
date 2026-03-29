@@ -296,7 +296,7 @@ import "github.com/jjmrocha/go-algo/sort"
 All sort functions take a `Comparator[T]` that returns `Before`, `Equal`, or `After`:
 
 ```go
-asc := func(a, b int) sort.Order {
+asc := func(a, b int) int {
     if a < b { return sort.Before }
     if a > b { return sort.After }
     return sort.Equal

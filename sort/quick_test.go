@@ -7,7 +7,7 @@ import (
 )
 
 func TestQuick(t *testing.T) {
-	asc := func(a, b int) Order {
+	asc := func(a, b int) int {
 		if a < b {
 			return Before
 		}
@@ -18,7 +18,7 @@ func TestQuick(t *testing.T) {
 		return Equal
 	}
 
-	dec := func(a, b int) Order {
+	dec := func(a, b int) int {
 		if a > b {
 			return Before
 		}
