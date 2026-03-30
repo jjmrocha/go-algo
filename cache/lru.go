@@ -22,7 +22,7 @@ func (n *node[K, V]) expired() bool {
 	return time.Now().After(n.expire)
 }
 
-// LRUCache is a thread-safe, generic Least Recently Used (LRU) kv.
+// LRUCache is a thread-safe, generic Least Recently Used (LRU) cache.
 // It evicts the least recently accessed entry when cap is exceeded.
 // All load and write operations are O(1) average time complexity.
 //

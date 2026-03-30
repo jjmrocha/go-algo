@@ -15,7 +15,7 @@ var ErrIndexOutOfRange = errors.New("index out of bounds")
 
 // QuickUnion is a disjoint-set data structure that tracks a
 // collection of elements partitioned into non-overlapping sets. It uses
-// unionfind by weight and half-path compression to achieve near-constant
+// union by weight and half-path compression to achieve near-constant
 // time for each operation.
 type QuickUnion struct {
 	sets   int
@@ -62,7 +62,7 @@ func (u *QuickUnion) Find(p int) (int, error) {
 	return u.parent[p], nil
 }
 
-// Union merges the sets containing p and q using unionfind by weight.
+// Union merges the sets containing p and q using union by weight.
 // It returns nil if the sets were successfully merged or were already
 // connected, and ErrIndexOutOfRange if either index is out of bounds.
 func (u *QuickUnion) Union(p, q int) error {
@@ -96,7 +96,7 @@ func (u *QuickUnion) Union(p, q int) error {
 }
 
 // Connected reports whether p and q belong to the same set.
-// It returns false if either index is out of bounds.
+// It returns ErrIndexOutOfRange if either index is out of bounds.
 func (u *QuickUnion) Connected(p, q int) (bool, error) {
 	rp, err := u.Find(p)
 	if err != nil {

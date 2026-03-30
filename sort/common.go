@@ -9,8 +9,8 @@ const (
 	After
 )
 
-// Comparator is a function that compares two values of type T and returns an Order indicating their relative order.
-// It returns -1 if a is less than b, 0 if a is equal to b, and 1 if a is greater than b.
+// Comparator is a function that compares two values of type T.
+// It returns [Before] if a is less than b, [Equal] if a is equal to b, and [After] if a is greater than b.
 type Comparator[T any] func(a, b T) int
 
 // Swap exchanges the elements at indices i and j in arr.

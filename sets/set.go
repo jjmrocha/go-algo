@@ -22,7 +22,7 @@ import (
 // an alias: both variables refer to the same underlying collection.
 type Set[T comparable] map[T]struct{}
 
-// New returns an empty, initialized Set ready for use.
+// New returns an initialized Set, optionally pre-populated with items.
 func New[T comparable](items ...T) Set[T] {
 	return Of(items)
 }
