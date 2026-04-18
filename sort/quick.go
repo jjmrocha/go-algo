@@ -26,6 +26,9 @@ func Quick[T any](arr []T, cmp Comparator[T]) {
 		}
 	}
 
+	// first is the index of the first element in the middle partition,
+	// and last is the index of the last element in the middle partition.
+	// The middle partition contains all elements equal to the pivot.
 	if first > 1 {
 		Quick[T](arr[:first], cmp)
 	}
@@ -36,7 +39,7 @@ func Quick[T any](arr []T, cmp Comparator[T]) {
 }
 
 func pivot[T any](arr []T, cmp Comparator[T]) T {
-	if len(arr) <= 3 {
+	if len(arr) <= 12 {
 		return arr[0]
 	}
 

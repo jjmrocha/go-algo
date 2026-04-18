@@ -30,16 +30,17 @@ func merge[T any](arr, aux []T, lo, mid, hi int, cmp Comparator[T]) {
 	i, j := lo, mid
 
 	for k := lo; k < hi; k++ {
-		if i >= mid {
+		switch {
+		case i >= mid:
 			arr[k] = aux[j]
 			j++
-		} else if j >= hi {
+		case j >= hi:
 			arr[k] = aux[i]
 			i++
-		} else if cmp(aux[i], aux[j]) == Before {
+		case cmp(aux[i], aux[j]) == Before:
 			arr[k] = aux[i]
 			i++
-		} else {
+		default:
 			arr[k] = aux[j]
 			j++
 		}
