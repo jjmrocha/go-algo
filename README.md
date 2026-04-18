@@ -307,7 +307,7 @@ arr := []int{4, 3, 6, 1, 5, 2}
 sort.Insertion(arr, asc) // O(n²) — stable, good for small or nearly-sorted arrays
 sort.Shell(arr, asc)     // O(n log² n) — Ciura gap sequence, fast in practice
 sort.Merge(arr, asc)     // O(n log n) — stable, single auxiliary buffer allocation
-sort.Quick(arr, asc)     // O(n log n) avg — 3-way partition + median-of-three pivot
+sort.Quick(arr, asc)     // O(n log n) avg — 3-way partition + random pivot
 ```
 
 `Shuffle` randomly permutes a slice using a cryptographically secure source:

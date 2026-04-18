@@ -39,8 +39,10 @@ func BenchmarkMerge(b *testing.B) {
 	for _, n := range benchSizes {
 		for _, dist := range benchDists {
 			b.Run(fmt.Sprintf("n=%d/%s", n, dist), func(b *testing.B) {
-				input := makeInts(n, dist)
+				base := makeInts(n, dist)
 				for b.Loop() {
+					input := make([]int, n)
+					copy(input, base)
 					Merge(input, intAsc)
 				}
 			})

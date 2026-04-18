@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewBlockingQueue(t *testing.T) {
@@ -37,7 +38,7 @@ func TestNewBlockingQueue(t *testing.T) {
 func TestBlockingQueueEnqueueDequeue(t *testing.T) {
 	// given
 	q, err := NewBlockingQueue[int](3)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	q.Enqueue(10)
 	q.Enqueue(20)
 	// when
@@ -50,7 +51,7 @@ func TestBlockingQueueEnqueueDequeue(t *testing.T) {
 func TestBlockingQueueFIFOOrdering(t *testing.T) {
 	// given
 	q, err := NewBlockingQueue[int](3)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	q.Enqueue(1)
 	q.Enqueue(2)
 	q.Enqueue(3)
@@ -64,7 +65,7 @@ func TestBlockingQueueFIFOOrdering(t *testing.T) {
 func TestBlockingQueueLen(t *testing.T) {
 	// given
 	q, err := NewBlockingQueue[int](5)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	// when
 	q.Enqueue(1)
 	q.Enqueue(2)
@@ -76,7 +77,7 @@ func TestBlockingQueueEmpty(t *testing.T) {
 	t.Run("empty queue", func(t *testing.T) {
 		// given
 		q, err := NewBlockingQueue[int](3)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		// when / then
 		assert.True(t, q.Empty())
 	})
@@ -84,7 +85,7 @@ func TestBlockingQueueEmpty(t *testing.T) {
 	t.Run("non-empty queue", func(t *testing.T) {
 		// given
 		q, err := NewBlockingQueue[int](3)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		q.Enqueue(1)
 		// when / then
 		assert.False(t, q.Empty())
@@ -94,7 +95,7 @@ func TestBlockingQueueEmpty(t *testing.T) {
 func TestBlockingQueueCap(t *testing.T) {
 	// given
 	q, err := NewBlockingQueue[int](7)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	// when
 	result := q.Cap()
 	// then
@@ -105,7 +106,7 @@ func TestBlockingQueueFull(t *testing.T) {
 	t.Run("not full", func(t *testing.T) {
 		// given
 		q, err := NewBlockingQueue[int](3)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		q.Enqueue(1)
 		// when / then
 		assert.False(t, q.Full())
@@ -114,7 +115,7 @@ func TestBlockingQueueFull(t *testing.T) {
 	t.Run("full", func(t *testing.T) {
 		// given
 		q, err := NewBlockingQueue[int](2)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		q.Enqueue(1)
 		q.Enqueue(2)
 		// when / then
@@ -126,7 +127,7 @@ func TestBlockingQueueConcurrentEnqueue(t *testing.T) {
 	// given
 	const n = 50
 	q, err := NewBlockingQueue[int](n)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	var wg sync.WaitGroup
 	// when: concurrent enqueues
 	for i := range n {

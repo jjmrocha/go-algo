@@ -77,6 +77,18 @@ func TestQuick(t *testing.T) {
 			cmd:      asc,
 			expected: []int{1, 1, 2, 2, 4, 4, 5, 5},
 		},
+		{
+			name:     "sort duplicates",
+			arr:      []int{1, 1, 1, 1, 1, 1, 1, 1},
+			cmd:      asc,
+			expected: []int{1, 1, 1, 1, 1, 1, 1, 1},
+		},
+		{
+			name:     "sort many duplicates",
+			arr:      []int{1, 2, 3, 1, 3, 1, 3, 2, 1},
+			cmd:      asc,
+			expected: []int{1, 1, 1, 1, 2, 2, 3, 3, 3},
+		},
 	}
 
 	for _, tt := range tests {

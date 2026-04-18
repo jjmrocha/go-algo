@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // mustNewLRUCache is a test helper that creates an LRUCache or fails the test.
@@ -47,7 +48,7 @@ func TestNewLRUCache(t *testing.T) {
 		// when
 		result, err := NewLRUCache[string, int](WithCapacity(3), WithTTL(time.Second))
 		// then
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, 3, result.Cap())
 	})
 
