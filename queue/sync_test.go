@@ -12,7 +12,7 @@ func TestNewSyncQueue(t *testing.T) {
 	result := NewSyncQueue[int]()
 	// then
 	assert.NotNil(t, result)
-	assert.Equal(t, int64(0), result.Len())
+	assert.Equal(t, int(0), result.Len())
 	assert.True(t, result.Empty())
 }
 
@@ -55,7 +55,7 @@ func TestSyncQueueConcurrentEnqueue(t *testing.T) {
 	}
 	wg.Wait()
 	// then
-	assert.Equal(t, int64(goroutines), q.Len())
+	assert.Equal(t, int(goroutines), q.Len())
 }
 
 func TestSyncQueueValues(t *testing.T) {
@@ -126,5 +126,5 @@ func TestSyncQueueConcurrentEnqueueDequeue(t *testing.T) {
 	wg.Wait()
 	// then — no panic means the data race detector would catch any issues;
 	// the exact count depends on scheduling, but must be non-negative.
-	assert.GreaterOrEqual(t, q.Len(), int64(0))
+	assert.GreaterOrEqual(t, q.Len(), int(0))
 }

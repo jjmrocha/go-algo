@@ -14,12 +14,12 @@ type node[T any] struct {
 	data T
 }
 
-// Stack is a generic LIFO data structure. The zero value is ready to use.
-// A Stack must not be copied after first use.
+// Stack is a generic LIFO data structure.
+// Use [New] to create a Stack. A Stack must not be copied after first use.
 type Stack[T any] struct {
 	pool  sync.Pool
 	first *node[T]
-	size  int64
+	size  int
 }
 
 // New returns an empty Stack ready for use.
@@ -73,7 +73,7 @@ func (s *Stack[T]) Peek() (T, bool) {
 }
 
 // Len returns the number of elements currently in the stack.
-func (s *Stack[T]) Len() int64 {
+func (s *Stack[T]) Len() int {
 	return s.size
 }
 

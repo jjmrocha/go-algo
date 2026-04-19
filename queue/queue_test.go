@@ -11,7 +11,7 @@ func TestNew(t *testing.T) {
 	result := New[int]()
 	// then
 	assert.NotNil(t, result)
-	assert.Equal(t, int64(0), result.Len())
+	assert.Equal(t, int(0), result.Len())
 	assert.True(t, result.Empty())
 }
 
@@ -23,7 +23,7 @@ func TestEnqueue(t *testing.T) {
 	q.Enqueue(2)
 	q.Enqueue(3)
 	// then
-	assert.Equal(t, int64(3), q.Len())
+	assert.Equal(t, int(3), q.Len())
 	assert.False(t, q.Empty())
 }
 
@@ -38,7 +38,7 @@ func TestDequeue(t *testing.T) {
 		// then
 		assert.True(t, ok)
 		assert.Equal(t, 10, result)
-		assert.Equal(t, int64(1), q.Len())
+		assert.Equal(t, int(1), q.Len())
 	})
 
 	t.Run("empty queue", func(t *testing.T) {
@@ -73,7 +73,7 @@ func TestQueueEmptyAfterDrain(t *testing.T) {
 	q.Dequeue()
 	// when / then
 	assert.True(t, q.Empty())
-	assert.Equal(t, int64(0), q.Len())
+	assert.Equal(t, int(0), q.Len())
 }
 
 func TestQueueRefillAfterDrain(t *testing.T) {

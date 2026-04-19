@@ -1,7 +1,5 @@
 package sort
 
-import "math/rand/v2"
-
 // Quick sorts arr in place using the order defined by cmp.
 func Quick[T any](arr []T, cmp Comparator[T]) {
 	if len(arr) <= 1 {
@@ -22,7 +20,8 @@ func quick[T any](arr []T, cmp Comparator[T]) {
 }
 
 func partition[T any](arr []T, cmp Comparator[T]) (int, int) {
-	pivot := rand.IntN(len(arr)) //nolint:gosec // G404: pivot choice needs speed, not cryptographic randomness
+	// middle-index pivot; swapped to position 0 before 3-way partitioning
+	pivot := len(arr) / 2
 	Swap(arr, 0, pivot)
 
 	partition := arr[0]

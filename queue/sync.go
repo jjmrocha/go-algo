@@ -37,7 +37,7 @@ func (q *SyncQueue[T]) Dequeue() (T, bool) {
 
 // Len returns the number of elements currently in the queue.
 // It is safe for concurrent use.
-func (q *SyncQueue[T]) Len() int64 {
+func (q *SyncQueue[T]) Len() int {
 	q.mu.RLock()
 	defer q.mu.RUnlock()
 	return q.q.Len()

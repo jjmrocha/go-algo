@@ -13,13 +13,13 @@ type node[T any] struct {
 	data T
 }
 
-// Queue is a generic FIFO data structure. The zero value is ready to use.
-// A Queue must not be copied after first use.
+// Queue is a generic FIFO data structure.
+// Use [New] to create a Queue. A Queue must not be copied after first use.
 type Queue[T any] struct {
 	pool  sync.Pool
 	first *node[T]
 	last  *node[T]
-	size  int64
+	size  int
 }
 
 // New returns an empty Queue ready for use.
@@ -73,7 +73,7 @@ func (q *Queue[T]) Dequeue() (T, bool) {
 }
 
 // Len returns the number of elements currently in the queue.
-func (q *Queue[T]) Len() int64 {
+func (q *Queue[T]) Len() int {
 	return q.size
 }
 

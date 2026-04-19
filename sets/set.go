@@ -130,6 +130,10 @@ func (s Set[T]) Union(o Set[T]) Set[T] {
 func (s Set[T]) Intersection(o Set[T]) Set[T] {
 	result := New[T]()
 
+	if len(o) < len(s) {
+		s, o = o, s
+	}
+
 	for item := range s {
 		if o.Contains(item) {
 			result.Add(item)

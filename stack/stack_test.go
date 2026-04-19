@@ -11,7 +11,7 @@ func TestNew(t *testing.T) {
 	result := New[int]()
 	// then
 	assert.NotNil(t, result)
-	assert.Equal(t, int64(0), result.Len())
+	assert.Equal(t, int(0), result.Len())
 	assert.True(t, result.Empty())
 }
 
@@ -23,7 +23,7 @@ func TestPush(t *testing.T) {
 	s.Push(2)
 	s.Push(3)
 	// then
-	assert.Equal(t, int64(3), s.Len())
+	assert.Equal(t, int(3), s.Len())
 	assert.False(t, s.Empty())
 }
 
@@ -39,7 +39,7 @@ func TestPop(t *testing.T) {
 		// then
 		assert.True(t, ok)
 		assert.Equal(t, 3, result)
-		assert.Equal(t, int64(2), s.Len())
+		assert.Equal(t, int(2), s.Len())
 	})
 
 	t.Run("empty stack", func(t *testing.T) {
@@ -64,7 +64,7 @@ func TestPeek(t *testing.T) {
 		// then
 		assert.True(t, ok)
 		assert.Equal(t, "b", result)
-		assert.Equal(t, int64(2), s.Len())
+		assert.Equal(t, int(2), s.Len())
 	})
 
 	t.Run("empty stack", func(t *testing.T) {

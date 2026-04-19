@@ -46,7 +46,7 @@ func (s *SyncStack[T]) Peek() (T, bool) {
 
 // Len returns the number of elements currently in the stack.
 // It is safe for concurrent use.
-func (s *SyncStack[T]) Len() int64 {
+func (s *SyncStack[T]) Len() int {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.s.Len()

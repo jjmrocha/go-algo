@@ -6,8 +6,8 @@ import (
 	"testing"
 )
 
-var benchSizes = []int{1_000, 10_000, 100_000}
-var benchDists = []string{"random", "sorted", "reverse"}
+var benchSizes = []int{1_000, 10_000, 100_000, 1_000_000}
+var benchDists = []string{"random", "sorted", "reverse", "dupes15"}
 
 func intAsc(a, b int) int {
 	if a < b {
@@ -31,6 +31,12 @@ func makeInts(n int, dist string) []int {
 		for i, j := 0, n-1; i < j; i, j = i+1, j-1 {
 			s[i], s[j] = s[j], s[i]
 		}
+	case "dupes15":
+		unique := int(float64(n) * 0.85)
+		for i := range s {
+			s[i] = i % unique
+		}
+		rand.Shuffle(n, func(i, j int) { s[i], s[j] = s[j], s[i] })
 	}
 	return s
 }

@@ -7,17 +7,17 @@ func Merge[T any](arr []T, cmp Comparator[T]) {
 	}
 
 	aux := make([]T, len(arr))
-	sort[T](arr, aux, 0, len(arr), cmp)
+	mergeSort[T](arr, aux, 0, len(arr), cmp)
 }
 
-func sort[T any](arr, aux []T, lo, hi int, cmp Comparator[T]) {
+func mergeSort[T any](arr, aux []T, lo, hi int, cmp Comparator[T]) {
 	if hi-lo <= 1 {
 		return
 	}
 
 	mid := lo + (hi-lo)/2
-	sort[T](arr, aux, lo, mid, cmp)
-	sort[T](arr, aux, mid, hi, cmp)
+	mergeSort[T](arr, aux, lo, mid, cmp)
+	mergeSort[T](arr, aux, mid, hi, cmp)
 
 	merge(arr, aux, lo, mid, hi, cmp)
 }
