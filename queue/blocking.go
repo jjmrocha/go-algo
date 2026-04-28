@@ -1,7 +1,5 @@
 package queue
 
-import "errors"
-
 // BlockingQueue is a bounded, channel-backed FIFO queue. Enqueue blocks
 // when the queue is full; Dequeue blocks when it is empty. BlockingQueue
 // is safe for concurrent use by multiple goroutines.
@@ -9,15 +7,11 @@ type BlockingQueue[T any] struct {
 	ch chan T
 }
 
-// ErrorCapacityGreaterThanZero is returned by NewBlockingQueue when the
-// requested capacity is not positive.
-var ErrorCapacityGreaterThanZero = errors.New("capacity must be greater than zero")
-
 // NewBlockingQueue creates a BlockingQueue with the given positive capacity.
-// It returns ErrorCapacityGreaterThanZero if capacity is not positive.
+// It returns ErrCapacityTooSmall if capacity is not positive.
 func NewBlockingQueue[T any](capacity int) (*BlockingQueue[T], error) {
 	if capacity <= 0 {
-		return nil, ErrorCapacityGreaterThanZero
+		return nil, ErrCapacityTooSmall
 	}
 
 	return &BlockingQueue[T]{ch: make(chan T, capacity)}, nil

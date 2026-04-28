@@ -24,14 +24,14 @@ func TestNewBlockingQueue(t *testing.T) {
 		// when
 		_, err := NewBlockingQueue[int](0)
 		// then
-		assert.ErrorIs(t, err, ErrorCapacityGreaterThanZero)
+		assert.ErrorIs(t, err, ErrCapacityTooSmall)
 	})
 
 	t.Run("negative capacity returns error", func(t *testing.T) {
 		// when
 		_, err := NewBlockingQueue[int](-1)
 		// then
-		assert.ErrorIs(t, err, ErrorCapacityGreaterThanZero)
+		assert.ErrorIs(t, err, ErrCapacityTooSmall)
 	})
 }
 

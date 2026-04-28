@@ -4,10 +4,14 @@
 package deque
 
 import (
+	"errors"
 	"iter"
 )
 
-const defaultCap = 64
+const defaultCap = 16
+
+// ErrorCapacityLessThanZero is returned when an attempt is made to create a Deque with a negative initial capacity.
+var ErrCapacityTooSmall = errors.New("capacity must be greater than zero")
 
 // Deque is a generic double-ended queue backed by a ring buffer.
 // Use New to create a Deque; the zero value is not ready for use.
@@ -22,13 +26,24 @@ type Deque[T any] struct {
 
 // New returns an empty Deque ready for use.
 func New[T any]() *Deque[T] {
+	d, _ := NewWithCap[T](defaultCap)
+	return d
+}
+
+// NewWithCap returns an empty Deque with the specified initial capacity.
+// It returns ErrCapacityTooSmall if capacity is not positive.
+func NewWithCap[T any](initialCap int) (*Deque[T], error) {
+	if initialCap <= 0 {
+		return nil, ErrCapacityTooSmall
+	}
+
 	return &Deque[T]{
-		items: make([]T, defaultCap),
+		items: make([]T, initialCap),
 		first: 0,
 		last:  0,
 		size:  0,
-		cap:   defaultCap,
-	}
+		cap:   initialCap,
+	}, nil
 }
 
 // PushFront adds data to the front of the deque.

@@ -51,6 +51,34 @@ bq.Enqueue(42)                             // blocks if full
 v := bq.Dequeue()                          // blocks if empty
 ```
 
+`PQueue[T]` is a min-heap priority queue ordered by a `Comparator[T]` (same contract as the `sort` package).
+Elements are always dequeued in priority order, not insertion order.
+
+```go
+cmp := func(a, b int) int {
+    if a < b { return sort.Before }
+    if a > b { return sort.After }
+    return sort.Equal
+}
+
+pq := queue.NewPriorityQueue[int](cmp)
+pq.Enqueue(5)
+pq.Enqueue(1)
+pq.Enqueue(3)
+
+v, ok := pq.Peek()    // 1, true  — minimum, no removal
+v, ok  = pq.Dequeue() // 1, true  — removes minimum
+v, ok  = pq.Dequeue() // 3, true
+
+// Custom initial capacity (returns error if ≤ 0).
+pq2, err := queue.NewPriorityQueueWithCap[int](64, cmp)
+
+// Drain in priority order.
+for v := range pq2.Values() { /* ... */ }
+```
+
+`SyncPQueue[T]` provides the same API safe for concurrent use.
+
 ---
 
 ### `deque` — Generic double-ended queue

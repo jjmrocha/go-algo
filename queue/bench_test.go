@@ -39,3 +39,33 @@ func BenchmarkBlockingQueueEnqueueDequeue(b *testing.B) {
 		q.Dequeue()
 	}
 }
+
+func BenchmarkPQueueEnqueue(b *testing.B) {
+	q := NewPriorityQueue[int](intCmp)
+	for b.Loop() {
+		q.Enqueue(1)
+	}
+}
+
+func BenchmarkPQueueEnqueueDequeue(b *testing.B) {
+	q := NewPriorityQueue[int](intCmp)
+	for b.Loop() {
+		q.Enqueue(1)
+		q.Dequeue()
+	}
+}
+
+func BenchmarkSyncPQueueEnqueue(b *testing.B) {
+	q := NewSyncPriorityQueue[int](intCmp)
+	for b.Loop() {
+		q.Enqueue(1)
+	}
+}
+
+func BenchmarkSyncPQueueEnqueueDequeue(b *testing.B) {
+	q := NewSyncPriorityQueue[int](intCmp)
+	for b.Loop() {
+		q.Enqueue(1)
+		q.Dequeue()
+	}
+}
