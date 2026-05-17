@@ -48,9 +48,7 @@ func NewWithCap[T any](initialCap int) (*Deque[T], error) {
 
 // PushFront adds data to the front of the deque.
 func (d *Deque[T]) PushFront(data T) {
-	if d.size == d.cap {
-		d.resize(d.cap * 2)
-	}
+	d.resizeIfNeeded()
 
 	d.first = d.prev(d.first)
 	d.items[d.first] = data
@@ -59,9 +57,7 @@ func (d *Deque[T]) PushFront(data T) {
 
 // PushBack adds data to the back of the deque.
 func (d *Deque[T]) PushBack(data T) {
-	if d.size == d.cap {
-		d.resize(d.cap * 2)
-	}
+	d.resizeIfNeeded()
 
 	d.items[d.last] = data
 	d.last = d.next(d.last)
@@ -84,9 +80,7 @@ func (d *Deque[T]) PopFront() (T, bool) {
 	d.first = d.next(d.first)
 	d.size--
 
-	if d.size < d.cap/4 && d.cap > defaultCap {
-		d.resize(d.cap / 2)
-	}
+	d.resizeIfNeeded()
 
 	return data, true
 }
@@ -108,9 +102,7 @@ func (d *Deque[T]) PopBack() (T, bool) {
 
 	d.size--
 
-	if d.size < d.cap/4 && d.cap > defaultCap {
-		d.resize(d.cap / 2)
-	}
+	d.resizeIfNeeded()
 
 	return data, true
 }
@@ -179,6 +171,18 @@ func (d *Deque[T]) ToSlice() []T {
 	}
 
 	return slice
+}
+
+func (d *Deque[T]) resizeIfNeeded() {
+	if d.size == d.cap {
+		d.resize(d.cap * 2)
+		return
+	}
+
+	if d.size < d.cap/4 && d.cap > defaultCap {
+		d.resize(d.cap / 2)
+		return
+	}
 }
 
 func (d *Deque[T]) resize(newCap int) {

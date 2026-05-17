@@ -1,4 +1,4 @@
-package unionfind
+package quickunion
 
 import (
 	"testing"

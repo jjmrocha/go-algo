@@ -1,6 +1,6 @@
-// Package unionfind implements a weighted quick-unionfind data structure with
+// Package quickunion implements a weighted quick-union data structure with
 // path compression for efficiently tracking disjoint sets.
-package unionfind
+package quickunion
 
 import (
 	"errors"

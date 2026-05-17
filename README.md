@@ -167,12 +167,12 @@ A nil `Bag` is safe for read operations (`Contains`, `Len`, `Count`, `Empty`).
 
 ---
 
-### `unionfind` — Weighted quick-union (disjoint sets)
+### `quickunion` — Weighted quick-union (disjoint sets)
 
 ```go
-import "github.com/jjmrocha/go-algo/unionfind"
+import "github.com/jjmrocha/go-algo/quickunion"
 
-u := unionfind.New(10) // 10 elements, each its own set
+u := quickunion.New(10) // 10 elements, each its own set
 
 u.Union(0, 1)
 u.Union(1, 2)
@@ -182,6 +182,34 @@ root, _       := u.Find(2)        // root of the set containing 2
 ```
 
 Uses union by weight and half-path compression for near-constant time per operation.
+
+---
+
+### `tree` — Ordered key-value store (Left-Leaning Red-Black BST)
+
+Keys are kept in sorted order; all operations run in guaranteed O(log n) time.
+
+```go
+import "github.com/jjmrocha/go-algo/tree"
+
+cmp := func(a, b int) int {
+    if a < b { return sort.Before }
+    if a > b { return sort.After }
+    return sort.Equal
+}
+
+tr := tree.New[int, string](cmp)
+tr.Put(2, "b")
+tr.Put(1, "a")
+tr.Put(3, "c")
+
+v, ok := tr.Get(1)    // "a", true
+tr.Contains(4)        // false
+tr.Len()              // 3
+
+tr.Put(1, "z")        // update — Len stays 3
+tr.ToList()           // ["z", "b", "c"] — values in ascending key order
+```
 
 ---
 
