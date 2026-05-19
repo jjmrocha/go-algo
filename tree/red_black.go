@@ -26,7 +26,7 @@ type Tree[K, V any] struct {
 type node[K, V any] struct {
 	key   K
 	value V
-	color color // true for red, false for black
+	color color
 	left  *node[K, V]
 	right *node[K, V]
 }
@@ -86,25 +86,6 @@ func (t *Tree[K, V]) Put(key K, value V) {
 	t.root.color = black
 }
 
-// ToList returns all values in ascending key order.
-func (t *Tree[K, V]) ToList() []V {
-	result := make([]V, 0, t.size)
-	s := stack.New[*node[K, V]]()
-	node := t.root
-
-	for node != nil || !s.Empty() {
-		for node != nil {
-			s.Push(node)
-			node = node.left
-		}
-		node, _ = s.Pop()
-		result = append(result, node.value)
-		node = node.right
-	}
-
-	return result
-}
-
 func (t *Tree[K, V]) insert(h *node[K, V], key K, value V) *node[K, V] {
 	if h == nil {
 		t.size++
@@ -125,18 +106,133 @@ func (t *Tree[K, V]) insert(h *node[K, V], key K, value V) *node[K, V] {
 	}
 
 	if isRed(h.right) && !isRed(h.left) {
-		h = t.rotateLeft(h)
+		h = rotateLeft(h)
 	}
 
 	if isRed(h.left) && isRed(h.left.left) {
-		h = t.rotateRight(h)
+		h = rotateRight(h)
 	}
 
 	if isRed(h.left) && isRed(h.right) {
-		t.flipColors(h)
+		flipColors(h)
 	}
 
 	return h
+}
+
+// ToList returns all values in ascending key order.
+func (t *Tree[K, V]) ToList() []V {
+	result := make([]V, 0, t.size)
+	s := stack.New[*node[K, V]]()
+	node := t.root
+
+	for node != nil || !s.Empty() {
+		for node != nil {
+			s.Push(node)
+			node = node.left
+		}
+		node, _ = s.Pop()
+		result = append(result, node.value)
+		node = node.right
+	}
+
+	return result
+}
+
+// Min returns the minimum key in the tree and true, or the zero value and false if the tree is empty.
+func (t *Tree[K, V]) Min() (K, bool) {
+	var zero K
+
+	if t.size == 0 {
+		return zero, false
+	}
+
+	node := t.root
+
+	for node.left != nil {
+		node = node.left
+	}
+
+	return node.key, true
+}
+
+// Max returns the maximum key in the tree and true, or the zero value and false if the tree is empty.
+func (t *Tree[K, V]) Max() (K, bool) {
+	var zero K
+
+	if t.size == 0 {
+		return zero, false
+	}
+
+	node := t.root
+
+	for node.right != nil {
+		node = node.right
+	}
+
+	return node.key, true
+}
+
+// Rank returns the number of keys in the tree that are less than key.
+func (t *Tree[K, V]) Rank(key K) int {
+	return t.rankOf(t.root, key)
+}
+
+func (t *Tree[K, V]) rankOf(node *node[K, V], key K) int {
+	if node == nil {
+		return 0
+	}
+
+	switch t.cmp(key, node.key) {
+	case sort.Before:
+		return t.rankOf(node.left, key)
+	case sort.After:
+		return 1 + sizeOf(node.left) + t.rankOf(node.right, key)
+	default:
+		return sizeOf(node.left)
+	}
+}
+
+// Select returns the key of rank r (the key such that exactly rank keys in the tree are less than it) and true,
+// or the zero value and false if r is out of bounds.
+func (t *Tree[K, V]) Select(r int) (K, bool) {
+	var zero K
+
+	if r < 0 || r >= t.size {
+		return zero, false
+	}
+
+	node := selectNode(t.root, r)
+	if node == nil {
+		return zero, false
+	}
+
+	return node.key, true
+}
+
+func selectNode[K, V any](node *node[K, V], rank int) *node[K, V] {
+	if node == nil {
+		return nil
+	}
+
+	leftSize := sizeOf(node.left)
+
+	switch {
+	case rank < leftSize:
+		return selectNode(node.left, rank)
+	case rank > leftSize:
+		return selectNode(node.right, rank-leftSize-1)
+	default:
+		return node
+	}
+}
+
+func sizeOf[K, V any](node *node[K, V]) int {
+	if node == nil {
+		return 0
+	}
+
+	return 1 + sizeOf(node.left) + sizeOf(node.right)
 }
 
 func isRed[K, V any](node *node[K, V]) bool {
@@ -147,7 +243,7 @@ func isRed[K, V any](node *node[K, V]) bool {
 	return node.color == red
 }
 
-func (t *Tree[K, V]) rotateLeft(h *node[K, V]) *node[K, V] {
+func rotateLeft[K, V any](h *node[K, V]) *node[K, V] {
 	x := h.right
 	h.right = x.left
 	x.left = h
@@ -156,7 +252,7 @@ func (t *Tree[K, V]) rotateLeft(h *node[K, V]) *node[K, V] {
 	return x
 }
 
-func (t *Tree[K, V]) rotateRight(h *node[K, V]) *node[K, V] {
+func rotateRight[K, V any](h *node[K, V]) *node[K, V] {
 	x := h.left
 	h.left = x.right
 	x.right = h
@@ -165,7 +261,7 @@ func (t *Tree[K, V]) rotateRight(h *node[K, V]) *node[K, V] {
 	return x
 }
 
-func (t *Tree[K, V]) flipColors(h *node[K, V]) {
+func flipColors[K, V any](h *node[K, V]) {
 	h.color = red
 	h.left.color = black
 	h.right.color = black

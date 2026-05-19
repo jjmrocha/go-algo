@@ -176,6 +176,298 @@ func TestPut(t *testing.T) {
 	})
 }
 
+func TestMin(t *testing.T) {
+	t.Run("empty tree returns zero and false", func(t *testing.T) {
+		// given
+		tr := New[int, string](intCmp)
+		// when
+		key, ok := tr.Min()
+		// then
+		assert.False(t, ok)
+		assert.Equal(t, 0, key)
+	})
+
+	t.Run("single element returns that key and true", func(t *testing.T) {
+		// given
+		tr := New[int, string](intCmp)
+		tr.Put(5, "a")
+		// when
+		key, ok := tr.Min()
+		// then
+		assert.True(t, ok)
+		assert.Equal(t, 5, key)
+	})
+
+	t.Run("returns smallest key after ascending insertions", func(t *testing.T) {
+		// given
+		tr := New[int, string](intCmp)
+		tr.Put(1, "a")
+		tr.Put(2, "b")
+		tr.Put(3, "c")
+		// when
+		key, ok := tr.Min()
+		// then
+		assert.True(t, ok)
+		assert.Equal(t, 1, key)
+	})
+
+	t.Run("returns smallest key after descending insertions", func(t *testing.T) {
+		// given
+		tr := New[int, string](intCmp)
+		tr.Put(3, "c")
+		tr.Put(2, "b")
+		tr.Put(1, "a")
+		// when
+		key, ok := tr.Min()
+		// then
+		assert.True(t, ok)
+		assert.Equal(t, 1, key)
+	})
+
+	t.Run("returns smallest key after random insertions", func(t *testing.T) {
+		// given
+		tr := New[int, string](intCmp)
+		for _, k := range []int{5, 3, 7, 1, 4, 6, 2} {
+			tr.Put(k, "v")
+		}
+		// when
+		key, ok := tr.Min()
+		// then
+		assert.True(t, ok)
+		assert.Equal(t, 1, key)
+	})
+}
+
+func TestMax(t *testing.T) {
+	t.Run("empty tree returns zero and false", func(t *testing.T) {
+		// given
+		tr := New[int, string](intCmp)
+		// when
+		key, ok := tr.Max()
+		// then
+		assert.False(t, ok)
+		assert.Equal(t, 0, key)
+	})
+
+	t.Run("single element returns that key and true", func(t *testing.T) {
+		// given
+		tr := New[int, string](intCmp)
+		tr.Put(5, "a")
+		// when
+		key, ok := tr.Max()
+		// then
+		assert.True(t, ok)
+		assert.Equal(t, 5, key)
+	})
+
+	t.Run("returns largest key after ascending insertions", func(t *testing.T) {
+		// given
+		tr := New[int, string](intCmp)
+		tr.Put(1, "a")
+		tr.Put(2, "b")
+		tr.Put(3, "c")
+		// when
+		key, ok := tr.Max()
+		// then
+		assert.True(t, ok)
+		assert.Equal(t, 3, key)
+	})
+
+	t.Run("returns largest key after descending insertions", func(t *testing.T) {
+		// given
+		tr := New[int, string](intCmp)
+		tr.Put(3, "c")
+		tr.Put(2, "b")
+		tr.Put(1, "a")
+		// when
+		key, ok := tr.Max()
+		// then
+		assert.True(t, ok)
+		assert.Equal(t, 3, key)
+	})
+
+	t.Run("returns largest key after random insertions", func(t *testing.T) {
+		// given
+		tr := New[int, string](intCmp)
+		for _, k := range []int{5, 3, 7, 1, 4, 6, 2} {
+			tr.Put(k, "v")
+		}
+		// when
+		key, ok := tr.Max()
+		// then
+		assert.True(t, ok)
+		assert.Equal(t, 7, key)
+	})
+}
+
+func TestRank(t *testing.T) {
+	t.Run("empty tree returns 0", func(t *testing.T) {
+		// given
+		tr := New[int, string](intCmp)
+		// when / then
+		assert.Equal(t, 0, tr.Rank(5))
+	})
+
+	t.Run("minimum key returns 0", func(t *testing.T) {
+		// given
+		tr := New[int, string](intCmp)
+		for _, k := range []int{3, 1, 5} {
+			tr.Put(k, "v")
+		}
+		// when / then
+		assert.Equal(t, 0, tr.Rank(1))
+	})
+
+	t.Run("maximum key returns size minus 1", func(t *testing.T) {
+		// given
+		tr := New[int, string](intCmp)
+		for _, k := range []int{3, 1, 5} {
+			tr.Put(k, "v")
+		}
+		// when / then
+		assert.Equal(t, 2, tr.Rank(5))
+	})
+
+	t.Run("key less than all elements returns 0", func(t *testing.T) {
+		// given
+		tr := New[int, string](intCmp)
+		for _, k := range []int{3, 5, 7} {
+			tr.Put(k, "v")
+		}
+		// when / then
+		assert.Equal(t, 0, tr.Rank(1))
+	})
+
+	t.Run("key greater than all elements returns size", func(t *testing.T) {
+		// given
+		tr := New[int, string](intCmp)
+		for _, k := range []int{3, 1, 5} {
+			tr.Put(k, "v")
+		}
+		// when / then
+		assert.Equal(t, 3, tr.Rank(10))
+	})
+
+	t.Run("middle key returns correct rank", func(t *testing.T) {
+		// given
+		tr := New[int, string](intCmp)
+		for _, k := range []int{1, 2, 3, 4, 5} {
+			tr.Put(k, "v")
+		}
+		// when / then
+		assert.Equal(t, 2, tr.Rank(3))
+	})
+
+	t.Run("absent key between elements returns number of keys less than it", func(t *testing.T) {
+		// given — keys {1, 3, 5}, querying 2
+		tr := New[int, string](intCmp)
+		for _, k := range []int{1, 3, 5} {
+			tr.Put(k, "v")
+		}
+		// when / then
+		assert.Equal(t, 1, tr.Rank(2))
+	})
+}
+
+func TestSelect(t *testing.T) {
+	t.Run("empty tree returns zero and false", func(t *testing.T) {
+		// given
+		tr := New[int, string](intCmp)
+		// when
+		key, ok := tr.Select(0)
+		// then
+		assert.False(t, ok)
+		assert.Equal(t, 0, key)
+	})
+
+	t.Run("negative rank returns zero and false", func(t *testing.T) {
+		// given
+		tr := New[int, string](intCmp)
+		tr.Put(1, "a")
+		// when
+		key, ok := tr.Select(-1)
+		// then
+		assert.False(t, ok)
+		assert.Equal(t, 0, key)
+	})
+
+	t.Run("rank equal to size returns zero and false", func(t *testing.T) {
+		// given
+		tr := New[int, string](intCmp)
+		tr.Put(1, "a")
+		// when
+		key, ok := tr.Select(1)
+		// then
+		assert.False(t, ok)
+		assert.Equal(t, 0, key)
+	})
+
+	t.Run("rank 0 returns minimum key", func(t *testing.T) {
+		// given
+		tr := New[int, string](intCmp)
+		for _, k := range []int{5, 3, 7, 1, 4, 6, 2} {
+			tr.Put(k, "v")
+		}
+		// when
+		key, ok := tr.Select(0)
+		// then
+		assert.True(t, ok)
+		assert.Equal(t, 1, key)
+	})
+
+	t.Run("rank size-1 returns maximum key", func(t *testing.T) {
+		// given
+		tr := New[int, string](intCmp)
+		for _, k := range []int{5, 3, 7, 1, 4, 6, 2} {
+			tr.Put(k, "v")
+		}
+		// when
+		key, ok := tr.Select(6)
+		// then
+		assert.True(t, ok)
+		assert.Equal(t, 7, key)
+	})
+
+	t.Run("middle rank returns correct key", func(t *testing.T) {
+		// given
+		tr := New[int, string](intCmp)
+		for _, k := range []int{5, 3, 7, 1, 4, 6, 2} {
+			tr.Put(k, "v")
+		}
+		// when
+		key, ok := tr.Select(3)
+		// then
+		assert.True(t, ok)
+		assert.Equal(t, 4, key)
+	})
+}
+
+func TestRankAndSelectAreInverses(t *testing.T) {
+	// given
+	tr := New[int, string](intCmp)
+	keys := []int{5, 3, 7, 1, 4, 6, 2}
+	for _, k := range keys {
+		tr.Put(k, "v")
+	}
+
+	t.Run("Select(Rank(key)) == key for all keys in tree", func(t *testing.T) {
+		for _, k := range keys {
+			rank := tr.Rank(k)
+			selected, ok := tr.Select(rank)
+			assert.True(t, ok)
+			assert.Equal(t, k, selected)
+		}
+	})
+
+	t.Run("Rank(Select(r)) == r for all valid ranks", func(t *testing.T) {
+		for r := range tr.Len() {
+			key, ok := tr.Select(r)
+			assert.True(t, ok)
+			assert.Equal(t, r, tr.Rank(key))
+		}
+	})
+}
+
 func TestToList(t *testing.T) {
 	t.Run("empty tree returns empty slice", func(t *testing.T) {
 		// given

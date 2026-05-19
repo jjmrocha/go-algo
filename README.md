@@ -187,7 +187,7 @@ Uses union by weight and half-path compression for near-constant time per operat
 
 ### `tree` — Ordered key-value store (Left-Leaning Red-Black BST)
 
-Keys are kept in sorted order; all operations run in guaranteed O(log n) time.
+Keys are kept in sorted order. `Get`, `Put`, and `Contains` run in O(log n). `Min` and `Max` run in O(log n). `Rank` and `Select` run in O(n) because nodes do not cache subtree sizes.
 
 ```go
 import "github.com/jjmrocha/go-algo/tree"
@@ -209,6 +209,16 @@ tr.Len()              // 3
 
 tr.Put(1, "z")        // update — Len stays 3
 tr.ToList()           // ["z", "b", "c"] — values in ascending key order
+
+k, ok := tr.Min()    // 1, true  — smallest key
+k, ok  = tr.Max()    // 3, true  — largest key
+
+tr.Rank(2)           // 1 — number of keys strictly less than 2
+tr.Rank(5)           // 3 — key absent but greater than all; equals Len()
+
+k, ok = tr.Select(0) // 1, true  — key of rank 0 (minimum)
+k, ok = tr.Select(2) // 3, true  — key of rank 2 (maximum)
+k, ok = tr.Select(9) // 0, false — out of bounds
 ```
 
 ---
