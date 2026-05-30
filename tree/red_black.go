@@ -105,19 +105,59 @@ func (t *Tree[K, V]) insert(h *node[K, V], key K, value V) *node[K, V] {
 		h.value = value
 	}
 
-	if isRed(h.right) && !isRed(h.left) {
-		h = rotateLeft(h)
+	return balance(h)
+}
+
+// Delete removes key from the tree and reports whether it was present. If key
+// is absent the tree is unchanged and Delete returns false.
+func (t *Tree[K, V]) Delete(key K) bool {
+	if !t.Contains(key) {
+		return false
 	}
 
-	if isRed(h.left) && isRed(h.left.left) {
-		h = rotateRight(h)
+	// If both children of root are black, set root to red so the invariant
+	// "the current node or one of its children is red" holds on the way down.
+	if !isRed(t.root.left) && !isRed(t.root.right) {
+		t.root.color = red
 	}
 
-	if isRed(h.left) && isRed(h.right) {
-		flipColors(h)
+	t.root = t.delete(t.root, key)
+	t.size--
+
+	if t.root != nil {
+		t.root.color = black
 	}
 
-	return h
+	return true
+}
+
+func (t *Tree[K, V]) delete(h *node[K, V], key K) *node[K, V] {
+	if t.cmp(key, h.key) == sort.Before {
+		if !isRed(h.left) && !isRed(h.left.left) {
+			h = moveRedLeft(h)
+		}
+		h.left = t.delete(h.left, key)
+	} else {
+		if isRed(h.left) {
+			h = rotateRight(h)
+		}
+		if t.cmp(key, h.key) == sort.Equal && h.right == nil {
+			return nil
+		}
+		if !isRed(h.right) && !isRed(h.right.left) {
+			h = moveRedRight(h)
+		}
+		if t.cmp(key, h.key) == sort.Equal {
+			x := minNode(h.right)
+			h.key = x.key
+			h.value = x.value
+			h.right = deleteMin(h.right)
+		} else {
+			h.right = t.delete(h.right, key)
+		}
+	}
+
+	return balance(h)
 }
 
 // ToList returns all values in ascending key order.
@@ -262,7 +302,79 @@ func rotateRight[K, V any](h *node[K, V]) *node[K, V] {
 }
 
 func flipColors[K, V any](h *node[K, V]) {
-	h.color = red
-	h.left.color = black
-	h.right.color = black
+	h.color = !h.color
+	h.left.color = !h.left.color
+	h.right.color = !h.right.color
+}
+
+// balance restores the Left-Leaning Red-Black invariants at h after a deletion
+// may have left a right-leaning or doubled red link, working bottom-up.
+func balance[K, V any](h *node[K, V]) *node[K, V] {
+	if isRed(h.right) && !isRed(h.left) {
+		h = rotateLeft(h)
+	}
+
+	if isRed(h.left) && isRed(h.left.left) {
+		h = rotateRight(h)
+	}
+
+	if isRed(h.left) && isRed(h.right) {
+		flipColors(h)
+	}
+
+	return h
+}
+
+// moveRedLeft assumes h is red and both h.left and h.left.left are black, and
+// makes h.left or one of its children red so the descent into the left subtree
+// can proceed.
+func moveRedLeft[K, V any](h *node[K, V]) *node[K, V] {
+	flipColors(h)
+
+	if isRed(h.right.left) {
+		h.right = rotateRight(h.right)
+		h = rotateLeft(h)
+		flipColors(h)
+	}
+
+	return h
+}
+
+// moveRedRight assumes h is red and both h.right and h.right.left are black, and
+// makes h.right or one of its children red so the descent into the right subtree
+// can proceed.
+func moveRedRight[K, V any](h *node[K, V]) *node[K, V] {
+	flipColors(h)
+
+	if isRed(h.left.left) {
+		h = rotateRight(h)
+		flipColors(h)
+	}
+
+	return h
+}
+
+// minNode returns the node holding the smallest key in the subtree rooted at h.
+func minNode[K, V any](h *node[K, V]) *node[K, V] {
+	for h.left != nil {
+		h = h.left
+	}
+
+	return h
+}
+
+// deleteMin removes the node with the smallest key from the subtree rooted at h
+// and returns the rebalanced subtree.
+func deleteMin[K, V any](h *node[K, V]) *node[K, V] {
+	if h.left == nil {
+		return nil
+	}
+
+	if !isRed(h.left) && !isRed(h.left.left) {
+		h = moveRedLeft(h)
+	}
+
+	h.left = deleteMin(h.left)
+
+	return balance(h)
 }

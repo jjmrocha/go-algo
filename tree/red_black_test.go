@@ -1,6 +1,8 @@
 package tree
 
 import (
+	"math/rand"
+	stdsort "sort"
 	"testing"
 
 	"github.com/jjmrocha/go-algo/sort"
@@ -466,6 +468,278 @@ func TestRankAndSelectAreInverses(t *testing.T) {
 			assert.Equal(t, r, tr.Rank(key))
 		}
 	})
+}
+
+func TestDelete(t *testing.T) {
+	t.Run("empty tree returns false", func(t *testing.T) {
+		// given
+		tr := New[int, string](intCmp)
+		// when
+		ok := tr.Delete(1)
+		// then
+		assert.False(t, ok)
+		assert.Equal(t, 0, tr.Len())
+	})
+
+	t.Run("absent key returns false and leaves tree unchanged", func(t *testing.T) {
+		// given
+		tr := New[int, string](intCmp)
+		tr.Put(1, "a")
+		tr.Put(3, "c")
+		// when
+		ok := tr.Delete(2)
+		// then
+		assert.False(t, ok)
+		assert.Equal(t, 2, tr.Len())
+		assert.True(t, tr.Contains(1))
+		assert.True(t, tr.Contains(3))
+	})
+
+	t.Run("present key returns true and is removed", func(t *testing.T) {
+		// given
+		tr := New[int, string](intCmp)
+		tr.Put(1, "a")
+		tr.Put(2, "b")
+		// when
+		ok := tr.Delete(1)
+		// then
+		assert.True(t, ok)
+		assert.False(t, tr.Contains(1))
+		assert.Equal(t, 1, tr.Len())
+	})
+
+	t.Run("deleting the only element empties the tree", func(t *testing.T) {
+		// given
+		tr := New[int, string](intCmp)
+		tr.Put(5, "a")
+		// when
+		ok := tr.Delete(5)
+		// then
+		assert.True(t, ok)
+		assert.True(t, tr.Empty())
+		assert.Empty(t, tr.ToList())
+	})
+
+	t.Run("deleting the same key twice returns false the second time", func(t *testing.T) {
+		// given
+		tr := New[int, string](intCmp)
+		tr.Put(1, "a")
+		tr.Put(2, "b")
+		// when
+		first := tr.Delete(1)
+		second := tr.Delete(1)
+		// then
+		assert.True(t, first)
+		assert.False(t, second)
+		assert.Equal(t, 1, tr.Len())
+	})
+
+	t.Run("deleting min then querying order", func(t *testing.T) {
+		// given
+		tr := New[int, int](intCmp)
+		for _, k := range []int{5, 3, 7, 1, 4, 6, 2} {
+			tr.Put(k, k)
+		}
+		// when
+		ok := tr.Delete(1)
+		// then
+		assert.True(t, ok)
+		assert.Equal(t, []int{2, 3, 4, 5, 6, 7}, tr.ToList())
+	})
+
+	t.Run("deleting max then querying order", func(t *testing.T) {
+		// given
+		tr := New[int, int](intCmp)
+		for _, k := range []int{5, 3, 7, 1, 4, 6, 2} {
+			tr.Put(k, k)
+		}
+		// when
+		ok := tr.Delete(7)
+		// then
+		assert.True(t, ok)
+		assert.Equal(t, []int{1, 2, 3, 4, 5, 6}, tr.ToList())
+	})
+
+	t.Run("deleting an internal node keeps remaining keys ordered", func(t *testing.T) {
+		// given
+		tr := New[int, int](intCmp)
+		for _, k := range []int{5, 3, 7, 1, 4, 6, 2} {
+			tr.Put(k, k)
+		}
+		// when
+		ok := tr.Delete(5)
+		// then
+		assert.True(t, ok)
+		assert.Equal(t, []int{1, 2, 3, 4, 6, 7}, tr.ToList())
+		_, present := tr.Get(5)
+		assert.False(t, present)
+	})
+
+	t.Run("deleting every key in sequence empties the tree and preserves invariants", func(t *testing.T) {
+		// given
+		tr := New[int, int](intCmp)
+		keys := []int{5, 3, 7, 1, 4, 6, 2, 9, 8, 0}
+		for _, k := range keys {
+			tr.Put(k, k)
+		}
+		// when / then — delete in a different order, checking invariants after each delete
+		for i, k := range []int{4, 0, 9, 2, 6, 5, 8, 1, 3, 7} {
+			ok := tr.Delete(k)
+			assert.Truef(t, ok, "expected key %d to be deleted", k)
+			assert.Equalf(t, len(keys)-i-1, tr.Len(), "size after deleting %d", k)
+			assertLLRBInvariants(t, tr)
+		}
+		assert.True(t, tr.Empty())
+	})
+
+	t.Run("remaining keys are retrievable after a delete", func(t *testing.T) {
+		// given
+		tr := New[int, string](intCmp)
+		tr.Put(1, "a")
+		tr.Put(2, "b")
+		tr.Put(3, "c")
+		// when
+		tr.Delete(2)
+		// then
+		a, okA := tr.Get(1)
+		c, okC := tr.Get(3)
+		assert.True(t, okA)
+		assert.Equal(t, "a", a)
+		assert.True(t, okC)
+		assert.Equal(t, "c", c)
+	})
+
+	t.Run("rank and select stay consistent after deletes", func(t *testing.T) {
+		// given
+		tr := New[int, int](intCmp)
+		for _, k := range []int{5, 3, 7, 1, 4, 6, 2} {
+			tr.Put(k, k)
+		}
+		// when
+		tr.Delete(4)
+		// then — remaining sorted keys are {1,2,3,5,6,7}
+		remaining := []int{1, 2, 3, 5, 6, 7}
+		for r, want := range remaining {
+			got, ok := tr.Select(r)
+			assert.True(t, ok)
+			assert.Equal(t, want, got)
+			assert.Equal(t, r, tr.Rank(want))
+		}
+	})
+}
+
+// assertLLRBInvariants verifies the structural invariants of a Left-Leaning
+// Red-Black BST: keys are in symmetric (BST) order, no right-leaning red links,
+// no two consecutive left-leaning red links, and the tree is perfectly black
+// balanced (every root-to-nil path has the same number of black links).
+func assertLLRBInvariants[K, V any](t *testing.T, tr *Tree[K, V]) {
+	t.Helper()
+
+	// BST order: in-order keys must be strictly ascending.
+	prev := (*K)(nil)
+	var inorder func(n *node[K, V])
+	inorder = func(n *node[K, V]) {
+		if n == nil {
+			return
+		}
+		inorder(n.left)
+		if prev != nil {
+			assert.Equalf(t, sort.Before, tr.cmp(*prev, n.key), "BST order violated around key %v", n.key)
+		}
+		k := n.key
+		prev = &k
+		inorder(n.right)
+	}
+	inorder(tr.root)
+
+	// No right-leaning red links and no two consecutive left red links.
+	var checkRedLinks func(n *node[K, V])
+	checkRedLinks = func(n *node[K, V]) {
+		if n == nil {
+			return
+		}
+		assert.Falsef(t, isRed(n.right), "right-leaning red link at key %v", n.key)
+		if isRed(n) {
+			assert.Falsef(t, isRed(n.left), "two consecutive left red links at key %v", n.key)
+		}
+		checkRedLinks(n.left)
+		checkRedLinks(n.right)
+	}
+	checkRedLinks(tr.root)
+
+	// Perfect black balance: count black links on the leftmost path, then assert
+	// every root-to-nil path has the same count.
+	expectedBlack := 0
+	for n := tr.root; n != nil; n = n.left {
+		if !isRed(n) {
+			expectedBlack++
+		}
+	}
+	var checkBalance func(n *node[K, V], black int)
+	checkBalance = func(n *node[K, V], black int) {
+		if n == nil {
+			assert.Equal(t, expectedBlack, black, "black height imbalance")
+			return
+		}
+		if !isRed(n) {
+			black++
+		}
+		checkBalance(n.left, black)
+		checkBalance(n.right, black)
+	}
+	checkBalance(tr.root, 0)
+}
+
+func TestDeleteStress(t *testing.T) {
+	// Randomized property test: interleave random Puts and Deletes against a
+	// reference map, asserting the tree stays a valid LLRB and agrees with the
+	// reference on contents and ordering after every mutation.
+	rng := rand.New(rand.NewSource(42))
+	const keySpace = 50
+
+	tr := New[int, int](intCmp)
+	ref := make(map[int]int)
+
+	for range 5000 {
+		key := rng.Intn(keySpace)
+
+		if rng.Intn(2) == 0 {
+			value := rng.Int()
+			tr.Put(key, value)
+			ref[key] = value
+		} else {
+			_, existed := ref[key]
+			ok := tr.Delete(key)
+			assert.Equalf(t, existed, ok, "Delete(%d) return value", key)
+			delete(ref, key)
+		}
+
+		assert.Equal(t, len(ref), tr.Len())
+		assertLLRBInvariants(t, tr)
+
+		if t.Failed() {
+			t.Fatalf("invariant or size check failed after operating on key %d", key)
+		}
+	}
+
+	// Final contents must match the reference exactly, in sorted order.
+	wantKeys := make([]int, 0, len(ref))
+	for k := range ref {
+		wantKeys = append(wantKeys, k)
+	}
+	stdsort.Ints(wantKeys)
+
+	wantValues := make([]int, 0, len(ref))
+	for _, k := range wantKeys {
+		wantValues = append(wantValues, ref[k])
+	}
+	assert.Equal(t, wantValues, tr.ToList())
+
+	for k, want := range ref {
+		got, ok := tr.Get(k)
+		assert.Truef(t, ok, "expected key %d present", k)
+		assert.Equalf(t, want, got, "value for key %d", k)
+	}
 }
 
 func TestToList(t *testing.T) {
