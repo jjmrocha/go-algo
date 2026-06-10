@@ -1,6 +1,7 @@
 package sorting
 
-// Merge implements the merge sort algorithm.
+// Merge sorts arr in place using the order defined by cmp. It is a stable sort
+// running in O(n log n) time with a single auxiliary buffer allocation.
 func Merge[T any](arr []T, cmp Comparator[T]) {
 	if len(arr) <= 1 {
 		return

@@ -8,7 +8,7 @@ import (
 )
 
 // node is an internal linked-list element that holds a value and a pointer to
-// the previous node in the chain.
+// the next node in the chain.
 type node[T any] struct {
 	next *node[T]
 	data T

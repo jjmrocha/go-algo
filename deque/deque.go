@@ -10,7 +10,8 @@ import (
 
 const defaultCap = 16
 
-// ErrorCapacityLessThanZero is returned when an attempt is made to create a Deque with a negative initial capacity.
+// ErrCapacityTooSmall is returned by [NewWithCap] when the requested capacity
+// is not positive.
 var ErrCapacityTooSmall = errors.New("capacity must be greater than zero")
 
 // Deque is a generic double-ended queue backed by a ring buffer.

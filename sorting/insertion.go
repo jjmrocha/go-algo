@@ -1,6 +1,7 @@
 package sorting
 
-// Insertion sorts arr in place using the order defined by cmp.
+// Insertion sorts arr in place using the order defined by cmp. It is a stable
+// O(n²) sort, well suited to small or nearly-sorted inputs.
 func Insertion[T any](arr []T, cmp Comparator[T]) {
 	insertionWithStep(arr, cmp, 1)
 }

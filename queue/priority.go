@@ -4,17 +4,26 @@ import "iter"
 
 const defaultCap = 16
 
+// PriorityQueue is a generic min-heap priority queue ordered by a comparator.
+// Elements are dequeued in ascending comparator order rather than insertion
+// order. The comparator follows the standard library convention (negative,
+// zero, or positive). A PriorityQueue must not be copied after first use.
 type PriorityQueue[T any] struct {
 	items []T
 	size  int
 	cmp   func(a, b T) int
 }
 
+// NewPriorityQueue returns an empty PriorityQueue ordered by cmp, using a
+// default initial capacity.
 func NewPriorityQueue[T any](cmp func(a, b T) int) *PriorityQueue[T] {
 	q, _ := NewPriorityQueueWithCap[T](defaultCap, cmp)
 	return q
 }
 
+// NewPriorityQueueWithCap returns an empty PriorityQueue ordered by cmp with the
+// given initial capacity. It returns [ErrCapacityTooSmall] if initialCap is not
+// positive.
 func NewPriorityQueueWithCap[T any](initialCap int, cmp func(a, b T) int) (*PriorityQueue[T], error) {
 	if initialCap <= 0 {
 		return nil, ErrCapacityTooSmall
@@ -27,6 +36,7 @@ func NewPriorityQueueWithCap[T any](initialCap int, cmp func(a, b T) int) (*Prio
 	}, nil
 }
 
+// Enqueue adds data to the queue, restoring the heap order.
 func (q *PriorityQueue[T]) Enqueue(data T) {
 	q.resizeIfNeeded()
 
@@ -36,6 +46,9 @@ func (q *PriorityQueue[T]) Enqueue(data T) {
 	q.swim()
 }
 
+// Peek returns the minimum element without removing it.
+// The second return value is false when the queue is empty, in which case
+// the zero value of T is returned.
 func (q *PriorityQueue[T]) Peek() (T, bool) {
 	if q.size == 0 {
 		var zero T
@@ -45,6 +58,9 @@ func (q *PriorityQueue[T]) Peek() (T, bool) {
 	return q.items[0], true
 }
 
+// Dequeue removes and returns the minimum element of the queue.
+// The second return value is false when the queue is empty, in which case
+// the zero value of T is returned.
 func (q *PriorityQueue[T]) Dequeue() (T, bool) {
 	var zero T
 
@@ -63,14 +79,19 @@ func (q *PriorityQueue[T]) Dequeue() (T, bool) {
 	return data, true
 }
 
+// Len returns the number of elements currently in the queue.
 func (q *PriorityQueue[T]) Len() int {
 	return q.size
 }
 
+// Empty reports whether the queue contains no elements.
 func (q *PriorityQueue[T]) Empty() bool {
 	return q.size == 0
 }
 
+// Drain returns an iterator that drains the queue in priority order.
+// Each dequeued element is yielded once; the queue is empty after the
+// iterator is fully consumed.
 func (q *PriorityQueue[T]) Drain() iter.Seq[T] {
 	return func(yield func(T) bool) {
 		for v, ok := q.Dequeue(); ok; v, ok = q.Dequeue() {

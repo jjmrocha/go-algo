@@ -1,5 +1,7 @@
 // Package treemap provides an ordered key-value store backed by a Left-Leaning
-// Red-Black BST (Sedgewick, 2008). All operations run in guaranteed O(log n) time.
+// Red-Black BST (Sedgewick, 2008). Get, Put, Contains, Delete, Min, and Max run
+// in O(log n) time. Rank and Select run in O(n) because nodes do not cache
+// subtree sizes.
 package treemap
 
 import "github.com/jjmrocha/go-algo/stack"

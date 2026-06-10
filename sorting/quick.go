@@ -1,6 +1,8 @@
 package sorting
 
-// Quick sorts arr in place using the order defined by cmp.
+// Quick sorts arr in place using the order defined by cmp. It uses a 3-way
+// partition around a middle-index pivot and runs in O(n log n) average time.
+// It is not stable.
 func Quick[T any](arr []T, cmp Comparator[T]) {
 	if len(arr) <= 1 {
 		return

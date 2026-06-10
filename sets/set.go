@@ -14,8 +14,8 @@ import (
 // Set is an unordered collection of unique elements of type T.
 //
 // The zero value of Set is nil. A nil Set is safe for read operations
-// ([Set.Contains], [Set.Len], [Set.Remove], [Set.ToSlice]), but calling
-// [Set.Add] on a nil Set panics. Use [New] or [Of] to obtain a
+// ([Set.Contains], [Set.Len], [Set.ToSlice]) and for [Set.Remove] (a no-op),
+// but calling [Set.Add] on a nil Set panics. Use [New] or [Of] to obtain a
 // ready-to-use Set.
 //
 // Because Set is a map type, assigning one Set variable to another creates
