@@ -3,18 +3,23 @@ package queue
 import (
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// blockWindow is how long a "still blocked" assertion waits before concluding an
+// operation is genuinely blocked; unblock assertions use a generous timeout.
+const blockWindow = 50 * time.Millisecond
 
 func TestNewBlockingQueue(t *testing.T) {
 	t.Run("valid capacity", func(t *testing.T) {
 		// when
 		result, err := NewBlockingQueue[int](5)
 		// then
-		assert.NoError(t, err)
-		assert.NotNil(t, result)
+		require.NoError(t, err)
+		require.NotNil(t, result)
 		assert.Equal(t, 5, result.Cap())
 		assert.Equal(t, 0, result.Len())
 		assert.True(t, result.Empty())
@@ -140,4 +145,62 @@ func TestBlockingQueueConcurrentEnqueue(t *testing.T) {
 	wg.Wait()
 	// then
 	assert.Equal(t, n, q.Len())
+}
+
+func TestBlockingQueueEnqueueBlocksWhenFull(t *testing.T) {
+	// given: a queue filled to capacity
+	q, err := NewBlockingQueue[int](1)
+	require.NoError(t, err)
+	q.Enqueue(1)
+
+	done := make(chan struct{})
+	// when: a further enqueue must block until a slot frees
+	go func() {
+		q.Enqueue(2)
+		close(done)
+	}()
+
+	// then: it stays blocked while the queue is full
+	select {
+	case <-done:
+		t.Fatal("Enqueue returned while the queue was full")
+	case <-time.After(blockWindow):
+	}
+
+	// and: freeing a slot unblocks it
+	require.Equal(t, 1, q.Dequeue())
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("Enqueue did not unblock after a slot was freed")
+	}
+	assert.Equal(t, 2, q.Dequeue())
+}
+
+func TestBlockingQueueDequeueBlocksWhenEmpty(t *testing.T) {
+	// given: an empty queue
+	q, err := NewBlockingQueue[int](1)
+	require.NoError(t, err)
+
+	result := make(chan int, 1)
+	// when: a dequeue must block until a value is available
+	go func() {
+		result <- q.Dequeue()
+	}()
+
+	// then: it stays blocked while the queue is empty
+	select {
+	case <-result:
+		t.Fatal("Dequeue returned while the queue was empty")
+	case <-time.After(blockWindow):
+	}
+
+	// and: enqueuing a value unblocks it
+	q.Enqueue(42)
+	select {
+	case v := <-result:
+		assert.Equal(t, 42, v)
+	case <-time.After(time.Second):
+		t.Fatal("Dequeue did not unblock after a value was enqueued")
+	}
 }

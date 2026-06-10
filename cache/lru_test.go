@@ -19,6 +19,32 @@ func mustNewLRUCache[K comparable, V any](t testing.TB, capacity int) *LRUCache[
 	return c
 }
 
+// fakeClock is a controllable clock for TTL tests. It is intended for
+// single-goroutine use, where advance is sequenced before any concurrent read.
+type fakeClock struct {
+	t time.Time
+}
+
+func newFakeClock() *fakeClock {
+	return &fakeClock{t: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)}
+}
+
+func (f *fakeClock) now() time.Time { return f.t }
+
+func (f *fakeClock) advance(d time.Duration) { f.t = f.t.Add(d) }
+
+// newLRUCacheWithClock creates an LRUCache wired to a controllable clock so TTL
+// behaviour can be tested deterministically without sleeping.
+func newLRUCacheWithClock[K comparable, V any](t testing.TB, clock *fakeClock, opts ...Option) *LRUCache[K, V] {
+	t.Helper()
+	c, err := NewLRUCache[K, V](opts...)
+	if err != nil {
+		t.Fatalf("NewLRUCache: unexpected error: %v", err)
+	}
+	c.now = clock.now
+	return c
+}
+
 func TestNewLRUCache(t *testing.T) {
 	t.Run("valid cap", func(t *testing.T) {
 		// when
@@ -266,11 +292,11 @@ func TestLRUCacheConcurrentAccess(t *testing.T) {
 func TestLRUCacheTTLExpiry(t *testing.T) {
 	t.Run("Get returns false after TTL", func(t *testing.T) {
 		// given
-		c, err := NewLRUCache[string, int](WithCapacity(3), WithTTL(20*time.Millisecond))
-		assert.NoError(t, err)
+		clock := newFakeClock()
+		c := newLRUCacheWithClock[string, int](t, clock, WithCapacity(3), WithTTL(time.Minute))
 		c.Put("a", 1)
-		// when: wait for TTL to elapse
-		time.Sleep(40 * time.Millisecond)
+		// when: advance past the TTL
+		clock.advance(2 * time.Minute)
 		result, ok := c.Get("a")
 		// then
 		assert.False(t, ok)
@@ -279,11 +305,11 @@ func TestLRUCacheTTLExpiry(t *testing.T) {
 
 	t.Run("Exists returns false after TTL", func(t *testing.T) {
 		// given
-		c, err := NewLRUCache[string, int](WithCapacity(3), WithTTL(20*time.Millisecond))
-		assert.NoError(t, err)
+		clock := newFakeClock()
+		c := newLRUCacheWithClock[string, int](t, clock, WithCapacity(3), WithTTL(time.Minute))
 		c.Put("a", 1)
-		// when: wait for TTL to elapse
-		time.Sleep(40 * time.Millisecond)
+		// when: advance past the TTL
+		clock.advance(2 * time.Minute)
 		result := c.Exists("a")
 		// then
 		assert.False(t, result)
@@ -291,10 +317,11 @@ func TestLRUCacheTTLExpiry(t *testing.T) {
 
 	t.Run("Get before TTL returns value", func(t *testing.T) {
 		// given
-		c, err := NewLRUCache[string, int](WithCapacity(3), WithTTL(time.Hour))
-		assert.NoError(t, err)
+		clock := newFakeClock()
+		c := newLRUCacheWithClock[string, int](t, clock, WithCapacity(3), WithTTL(time.Hour))
 		c.Put("a", 42)
-		// when
+		// when: advance, but not past the TTL
+		clock.advance(30 * time.Minute)
 		result, ok := c.Get("a")
 		// then
 		assert.True(t, ok)
@@ -303,14 +330,14 @@ func TestLRUCacheTTLExpiry(t *testing.T) {
 
 	t.Run("Put resets TTL on update", func(t *testing.T) {
 		// given
-		c, err := NewLRUCache[string, int](WithCapacity(3), WithTTL(60*time.Millisecond))
-		assert.NoError(t, err)
+		clock := newFakeClock()
+		c := newLRUCacheWithClock[string, int](t, clock, WithCapacity(3), WithTTL(time.Minute))
 		c.Put("a", 1)
-		// when: update before TTL elapses resets the clock
-		time.Sleep(40 * time.Millisecond)
+		// when: an update before expiry resets the clock
+		clock.advance(40 * time.Second)
 		c.Put("a", 2)
-		time.Sleep(40 * time.Millisecond)
-		// then: 40+40=80ms since first write, but only 40ms since last write — still live
+		clock.advance(40 * time.Second)
+		// then: 80s since first write, but only 40s since last write — still live
 		result, ok := c.Get("a")
 		assert.True(t, ok)
 		assert.Equal(t, 2, result)
@@ -318,11 +345,11 @@ func TestLRUCacheTTLExpiry(t *testing.T) {
 
 	t.Run("expired entry frees slot for new entry", func(t *testing.T) {
 		// given: cap 1
-		c, err := NewLRUCache[string, int](WithCapacity(1), WithTTL(20*time.Millisecond))
-		assert.NoError(t, err)
+		clock := newFakeClock()
+		c := newLRUCacheWithClock[string, int](t, clock, WithCapacity(1), WithTTL(time.Minute))
 		c.Put("a", 1)
-		// when: wait for a to expire, then put b
-		time.Sleep(40 * time.Millisecond)
+		// when: a expires, then put b
+		clock.advance(2 * time.Minute)
 		c.Put("b", 2)
 		// then: b is accessible and a is gone
 		result, ok := c.Get("b")

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func intCmp(a, b int) int {
@@ -40,8 +41,8 @@ func TestNewPriorityQueueWithCap(t *testing.T) {
 		// when
 		result, err := NewPriorityQueueWithCap[int](4, intCmp)
 		// then
-		assert.NoError(t, err)
-		assert.NotNil(t, result)
+		require.NoError(t, err)
+		require.NotNil(t, result)
 		assert.Equal(t, 0, result.Len())
 		assert.True(t, result.Empty())
 	})

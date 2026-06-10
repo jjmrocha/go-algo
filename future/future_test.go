@@ -12,12 +12,11 @@ import (
 
 func asyncFuncMaker[T any](value T, err error) func(context.Context) (T, error) {
 	return func(_ context.Context) (T, error) {
-		time.Sleep(10 * time.Millisecond)
 		return value, err
 	}
 }
 
-func TestAsyncWithWait(t *testing.T) {
+func TestAwaitWithContext(t *testing.T) {
 	// given
 	ctx := t.Context()
 	testError := errors.New("test error")
@@ -70,23 +69,33 @@ func TestAsyncWithWait(t *testing.T) {
 }
 
 func TestAsyncWithTimeout(t *testing.T) {
-	// given
+	// given: a provider that never completes, so the deadline is what fires
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Millisecond)
 	defer cancel()
+	block := make(chan struct{})
+	defer close(block)
+	f := AsyncWithContext(ctx, func(context.Context) (int, error) {
+		<-block
+		return 1, nil
+	})
 	// when
-	_, result := AsyncWithContext(ctx, asyncFuncMaker(1, nil)).
-		AwaitWithContext(ctx)
+	_, result := f.AwaitWithContext(ctx)
 	// then
 	assert.ErrorIs(t, result, context.DeadlineExceeded)
 }
 
 func TestAsyncWithCancel(t *testing.T) {
-	// given
+	// given: ctx is cancelled up front and the provider never completes
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
+	block := make(chan struct{})
+	defer close(block)
+	f := AsyncWithContext(ctx, func(context.Context) (int, error) {
+		<-block
+		return 1, nil
+	})
 	// when
-	_, result := AsyncWithContext(ctx, asyncFuncMaker(1, nil)).
-		AwaitWithContext(ctx)
+	_, result := f.AwaitWithContext(ctx)
 	// then
 	assert.ErrorIs(t, result, context.Canceled)
 }
@@ -106,17 +115,19 @@ func TestAwaitCanBeCalledMultipleTimes(t *testing.T) {
 }
 
 func TestAwaitContextCancelledThenRetried(t *testing.T) {
-	// given: a future that resolves after a short delay
+	// given: a future held unresolved until release is closed
+	release := make(chan struct{})
 	f := Async(func() (int, error) {
-		time.Sleep(50 * time.Millisecond)
+		<-release
 		return 7, nil
 	})
-	// when: first AwaitWithContext is cancelled immediately
+	// when: the first await is cancelled while the future is still unresolved
 	cancelledCtx, cancel := context.WithCancel(t.Context())
 	cancel()
 	_, err := f.AwaitWithContext(cancelledCtx)
 	assert.ErrorIs(t, err, context.Canceled)
-	// then: second AwaitWithContext with a fresh context still receives the result
+	// then: once resolved, a second await with a live context receives the result
+	close(release)
 	result, err := f.AwaitWithContext(t.Context())
 	assert.NoError(t, err)
 	assert.Equal(t, 7, result)
@@ -148,22 +159,23 @@ func TestAwaitConcurrent(t *testing.T) {
 
 func TestAwaitWithTimeout(t *testing.T) {
 	t.Run("success within timeout", func(t *testing.T) {
-		// given: computation finishes well within the timeout
+		// given: the computation resolves on its own
 		f := Async(func() (int, error) {
-			time.Sleep(10 * time.Millisecond)
 			return 42, nil
 		})
-		// when
-		result, err := f.AwaitWithTimeout(200 * time.Millisecond)
+		// when: a generous timeout that will not be reached
+		result, err := f.AwaitWithTimeout(time.Second)
 		// then
 		assert.NoError(t, err)
 		assert.Equal(t, 42, result)
 	})
 
 	t.Run("timeout exceeded", func(t *testing.T) {
-		// given: computation takes longer than the timeout
+		// given: a computation that never completes
+		block := make(chan struct{})
+		defer close(block)
 		f := Async(func() (int, error) {
-			time.Sleep(200 * time.Millisecond)
+			<-block
 			return 42, nil
 		})
 		// when
@@ -177,7 +189,6 @@ func TestMultipleConsumers(t *testing.T) {
 	// given
 	expected := "done"
 	f := Async(func() (string, error) {
-		time.Sleep(20 * time.Millisecond)
 		return expected, nil
 	})
 	// when

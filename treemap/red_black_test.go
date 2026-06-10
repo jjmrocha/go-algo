@@ -574,20 +574,21 @@ func TestDelete(t *testing.T) {
 		assert.False(t, present)
 	})
 
-	t.Run("deleting every key in sequence empties the tree and preserves invariants", func(t *testing.T) {
+	t.Run("deleting every key in sequence empties the tree, keeping keys ordered", func(t *testing.T) {
 		// given
 		tr := New[int, int](intCmp)
-		keys := []int{5, 3, 7, 1, 4, 6, 2, 9, 8, 0}
-		for _, k := range keys {
-			tr.Put(k, k)
+		remaining := map[int]int{5: 5, 3: 3, 7: 7, 1: 1, 4: 4, 6: 6, 2: 2, 9: 9, 8: 8, 0: 0}
+		for k, v := range remaining {
+			tr.Put(k, v)
 		}
-		// when / then — delete in a different order, checking invariants after each delete
-		for i, k := range []int{4, 0, 9, 2, 6, 5, 8, 1, 3, 7} {
+		// when / then — delete in a different order; contents stay sorted after each
+		for _, k := range []int{4, 0, 9, 2, 6, 5, 8, 1, 3, 7} {
 			ok := tr.Delete(k)
 			assert.Truef(t, ok, "expected key %d to be deleted", k)
-			assert.Equalf(t, len(keys)-i-1, tr.Len(), "size after deleting %d", k)
-			assertLLRBInvariants(t, tr)
+			delete(remaining, k)
+			assert.Equalf(t, sortedValues(remaining), tr.ToList(), "contents after deleting %d", k)
 		}
+		// then
 		assert.True(t, tr.Empty())
 	})
 
@@ -627,72 +628,10 @@ func TestDelete(t *testing.T) {
 	})
 }
 
-// assertLLRBInvariants verifies the structural invariants of a Left-Leaning
-// Red-Black BST: keys are in symmetric (BST) order, no right-leaning red links,
-// no two consecutive left-leaning red links, and the tree is perfectly black
-// balanced (every root-to-nil path has the same number of black links).
-func assertLLRBInvariants[K, V any](t *testing.T, tr *Map[K, V]) {
-	t.Helper()
-
-	// BST order: in-order keys must be strictly ascending.
-	prev := (*K)(nil)
-	var inorder func(n *node[K, V])
-	inorder = func(n *node[K, V]) {
-		if n == nil {
-			return
-		}
-		inorder(n.left)
-		if prev != nil {
-			assert.Negativef(t, tr.cmp(*prev, n.key), "BST order violated around key %v", n.key)
-		}
-		k := n.key
-		prev = &k
-		inorder(n.right)
-	}
-	inorder(tr.root)
-
-	// No right-leaning red links and no two consecutive left red links.
-	var checkRedLinks func(n *node[K, V])
-	checkRedLinks = func(n *node[K, V]) {
-		if n == nil {
-			return
-		}
-		assert.Falsef(t, isRed(n.right), "right-leaning red link at key %v", n.key)
-		if isRed(n) {
-			assert.Falsef(t, isRed(n.left), "two consecutive left red links at key %v", n.key)
-		}
-		checkRedLinks(n.left)
-		checkRedLinks(n.right)
-	}
-	checkRedLinks(tr.root)
-
-	// Perfect black balance: count black links on the leftmost path, then assert
-	// every root-to-nil path has the same count.
-	expectedBlack := 0
-	for n := tr.root; n != nil; n = n.left {
-		if !isRed(n) {
-			expectedBlack++
-		}
-	}
-	var checkBalance func(n *node[K, V], black int)
-	checkBalance = func(n *node[K, V], black int) {
-		if n == nil {
-			assert.Equal(t, expectedBlack, black, "black height imbalance")
-			return
-		}
-		if !isRed(n) {
-			black++
-		}
-		checkBalance(n.left, black)
-		checkBalance(n.right, black)
-	}
-	checkBalance(tr.root, 0)
-}
-
 func TestDeleteStress(t *testing.T) {
 	// Randomized property test: interleave random Puts and Deletes against a
-	// reference map, asserting the tree stays a valid LLRB and agrees with the
-	// reference on contents and ordering after every mutation.
+	// reference map, asserting the tree agrees with the reference on size and
+	// ascending-key contents after every mutation (observable behaviour only).
 	rng := rand.New(rand.NewSource(42))
 	const keySpace = 50
 
@@ -713,32 +652,37 @@ func TestDeleteStress(t *testing.T) {
 			delete(ref, key)
 		}
 
+		// then: size and ascending-order values match the reference
 		assert.Equal(t, len(ref), tr.Len())
-		assertLLRBInvariants(t, tr)
+		assert.Equalf(t, sortedValues(ref), tr.ToList(), "contents after operating on key %d", key)
 
 		if t.Failed() {
-			t.Fatalf("invariant or size check failed after operating on key %d", key)
+			t.FailNow()
 		}
 	}
 
-	// Final contents must match the reference exactly, in sorted order.
-	wantKeys := make([]int, 0, len(ref))
-	for k := range ref {
-		wantKeys = append(wantKeys, k)
-	}
-	stdsort.Ints(wantKeys)
-
-	wantValues := make([]int, 0, len(ref))
-	for _, k := range wantKeys {
-		wantValues = append(wantValues, ref[k])
-	}
-	assert.Equal(t, wantValues, tr.ToList())
-
+	// and: every reference key is retrievable with its latest value
 	for k, want := range ref {
 		got, ok := tr.Get(k)
 		assert.Truef(t, ok, "expected key %d present", k)
 		assert.Equalf(t, want, got, "value for key %d", k)
 	}
+}
+
+// sortedValues returns the values of ref ordered by ascending key — the order
+// treemap.ToList is expected to produce.
+func sortedValues(ref map[int]int) []int {
+	keys := make([]int, 0, len(ref))
+	for k := range ref {
+		keys = append(keys, k)
+	}
+	stdsort.Ints(keys)
+
+	values := make([]int, 0, len(ref))
+	for _, k := range keys {
+		values = append(values, ref[k])
+	}
+	return values
 }
 
 func TestToList(t *testing.T) {

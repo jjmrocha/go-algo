@@ -14,12 +14,12 @@ type node[K comparable, V any] struct {
 	next   *node[K, V]
 }
 
-func (n *node[K, V]) expired() bool {
+func (n *node[K, V]) expired(now time.Time) bool {
 	if n.expire.IsZero() {
 		return false
 	}
 
-	return time.Now().After(n.expire)
+	return now.After(n.expire)
 }
 
 // LRUCache is a thread-safe, generic Least Recently Used (LRU) cache.
@@ -34,6 +34,7 @@ type LRUCache[K comparable, V any] struct {
 	kv   map[K]*node[K, V]
 	head *node[K, V]
 	tail *node[K, V]
+	now  func() time.Time // injectable clock; defaults to time.Now
 }
 
 // NewLRUCache creates a new LRUCache configured by the supplied options.
@@ -52,6 +53,7 @@ func NewLRUCache[K comparable, V any](opts ...Option) (*LRUCache[K, V], error) {
 		cap: cfg.capacity,
 		ttl: cfg.ttl,
 		kv:  make(map[K]*node[K, V]),
+		now: time.Now,
 	}, nil
 }
 
@@ -97,7 +99,7 @@ func (c *LRUCache[K, V]) Exists(key K) bool {
 	defer c.mu.RUnlock()
 
 	node, exists := c.kv[key]
-	return exists && !node.expired()
+	return exists && !node.expired(c.now())
 }
 
 // Cap returns the maximum number of entries the cache can hold.
@@ -112,7 +114,7 @@ func (c *LRUCache[K, V]) load(key K) (V, bool) {
 		return zero, false
 	}
 
-	if n.expired() {
+	if n.expired(c.now()) {
 		c.remove(key)
 		var zero V
 		return zero, false
@@ -221,5 +223,5 @@ func (c *LRUCache[K, V]) expiresAt() time.Time {
 		return time.Time{}
 	}
 
-	return time.Now().Add(c.ttl)
+	return c.now().Add(c.ttl)
 }

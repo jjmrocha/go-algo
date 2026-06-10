@@ -14,7 +14,6 @@ func TestNew(t *testing.T) {
 	result := New[string, int]()
 	// then
 	assert.NotNil(t, result)
-	assert.NotNil(t, result.keys)
 }
 
 func TestDo(t *testing.T) {

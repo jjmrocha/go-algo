@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // mustNewLRUWithProvider is a test helper that creates an LRUProvider or fails the test.
@@ -230,15 +231,17 @@ func TestLRUProviderConcurrentGet(t *testing.T) {
 func TestLRUProviderTTLExpiry(t *testing.T) {
 	t.Run("expired entry causes provider re-call", func(t *testing.T) {
 		// given
+		clock := newFakeClock()
 		var calls atomic.Int32
-		lp, err := NewLRUWithProvider(counterProvider[string](&calls), WithCapacity(3), WithTTL(20*time.Millisecond))
-		assert.NoError(t, err)
+		lp, err := NewLRUWithProvider(counterProvider[string](&calls), WithCapacity(3), WithTTL(time.Minute))
+		require.NoError(t, err)
+		lp.cache.now = clock.now
 		lp.GetWithContext(t.Context(), "x") //nolint:errcheck
 		assert.Equal(t, int32(1), calls.Load())
-		// when: wait for TTL to elapse, then Get again
-		time.Sleep(40 * time.Millisecond)
+		// when: advance past the TTL, then Get again
+		clock.advance(2 * time.Minute)
 		result, err := lp.GetWithContext(t.Context(), "x")
-		// then: provider is called again since entry expired
+		// then: provider is called again since the entry expired
 		assert.NoError(t, err)
 		assert.Equal(t, "x", result)
 		assert.Equal(t, int32(2), calls.Load())
