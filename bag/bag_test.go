@@ -513,7 +513,7 @@ func TestIntersection(t *testing.T) {
 }
 
 // TestBag_NilSafety documents that read operations on a nil Bag do not panic.
-func TestBag_NilSafety(t *testing.T) {
+func TestBagNilSafety(t *testing.T) {
 	// given
 	var b Bag[int]
 	// then

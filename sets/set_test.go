@@ -205,7 +205,7 @@ func TestToSlice(t *testing.T) {
 }
 
 // TestSet_NilSafety documents that read operations on a nil Set do not panic.
-func TestSet_NilSafety(t *testing.T) {
+func TestSetNilSafety(t *testing.T) {
 	// given
 	var s Set[int]
 	// then
