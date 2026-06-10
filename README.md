@@ -44,7 +44,7 @@ or supply your own function for a custom order.
 
 ### `stack`
 
-Generic LIFO stack backed by a singly-linked list.
+Generic LIFO stack backed by a singly-linked list. · [API ↓](#stack-api)
 
 ```go
 import "github.com/jjmrocha/go-algo/stack"
@@ -62,7 +62,7 @@ for v := range s.Drain() { /* pops top→bottom; the stack is emptied */ }
 
 ### `queue`
 
-Generic FIFO queue backed by a singly-linked list.
+Generic FIFO queue backed by a singly-linked list. · [API ↓](#queue-api)
 
 ```go
 import "github.com/jjmrocha/go-algo/queue"
@@ -111,7 +111,7 @@ for v := range pq2.Drain() { /* drains in priority order */ }
 ### `deque`
 
 Generic double-ended queue backed by a dynamically resized ring buffer, with O(1) amortised push
-and pop at both ends.
+and pop at both ends. · [API ↓](#deque-api)
 
 ```go
 import "github.com/jjmrocha/go-algo/deque"
@@ -137,7 +137,7 @@ for v := range d.Values() { /* front→back; the deque is NOT modified */ }
 ### `sets`
 
 Generic set of unique elements with set-algebra operations. O(1) amortised `Add`, `Remove`, and
-`Contains`.
+`Contains`. · [API ↓](#sets-api)
 
 ```go
 import "github.com/jjmrocha/go-algo/sets"
@@ -158,7 +158,7 @@ A nil `Set` is safe for read operations (`Contains`, `Len`, `ToSlice`) and for `
 
 ### `bag`
 
-Generic multiset that tracks how many times each element has been added, allowing duplicates.
+Generic multiset that tracks how many times each element has been added, allowing duplicates. · [API ↓](#bag-api)
 
 ```go
 import "github.com/jjmrocha/go-algo/bag"
@@ -182,7 +182,7 @@ A nil `Bag` is safe for read operations (`Contains`, `Len`, `Count`, `Empty`).
 
 ### `treemap`
 
-Ordered key-value store backed by a Left-Leaning Red-Black BST. Keys are kept in sorted order.
+Ordered key-value store backed by a Left-Leaning Red-Black BST. Keys are kept in sorted order. · [API ↓](#treemap-api)
 
 ```go
 import (
@@ -210,7 +210,7 @@ O(n) because nodes do not cache subtree sizes.
 ### `unionfind`
 
 Union-find (disjoint-set) structure using weighted quick-union with half-path compression, giving
-near-constant time per operation.
+near-constant time per operation. · [API ↓](#unionfind-api)
 
 ```go
 import "github.com/jjmrocha/go-algo/unionfind"
@@ -232,7 +232,7 @@ u.Sets()                          // 8 — number of disjoint sets
 ### `sorting`
 
 Generic in-place sorting and shuffling. All sort functions take a comparator (see
-[The comparator contract](#the-comparator-contract)).
+[The comparator contract](#the-comparator-contract)). · [API ↓](#sorting-api)
 
 ```go
 import (
@@ -261,7 +261,7 @@ err := sorting.Shuffle(arr) // Fisher-Yates via crypto/rand
 
 ### `fn`
 
-Higher-order functions for slices and iterators.
+Higher-order functions for slices and iterators. · [API ↓](#fn-api)
 
 ```go
 import "github.com/jjmrocha/go-algo/fn"
@@ -297,7 +297,7 @@ is inherently eager).
 
 ### `future`
 
-Generic async computation. A `Future[T]` holds a value that becomes available later.
+Generic async computation. A `Future[T]` holds a value that becomes available later. · [API ↓](#future-api)
 
 ```go
 import "github.com/jjmrocha/go-algo/future"
@@ -317,7 +317,7 @@ Multiple goroutines can await the same Future concurrently — all receive the s
 ### `singleflight`
 
 Deduplicates concurrent calls for the same key, preventing cache stampedes. When multiple goroutines
-request the same key simultaneously, only one provider invocation runs; all callers share the result.
+request the same key simultaneously, only one provider invocation runs; all callers share the result. · [API ↓](#singleflight-api)
 
 ```go
 import "github.com/jjmrocha/go-algo/singleflight"
@@ -335,7 +335,7 @@ Completed computations are not retained: a call after the Future resolves starts
 ### `cache`
 
 LRU cache. Both cache types are configured with functional options; `WithCapacity` is required and
-`WithTTL` is optional.
+`WithTTL` is optional. · [API ↓](#cache-api)
 
 ```go
 import (
@@ -368,6 +368,246 @@ value, err := lp.Get("key")                 // blocks until the provider returns
 value, err  = lp.GetWithContext(ctx, "key") // context-aware
 lp.Invalidate("key")                        // force re-fetch on next Get
 ```
+
+---
+
+## API reference
+
+Complete exported surface of each package. For full documentation see
+[pkg.go.dev/github.com/jjmrocha/go-algo](https://pkg.go.dev/github.com/jjmrocha/go-algo).
+
+### stack API
+
+Constructors: `New[T]() *Stack[T]`, `NewSyncStack[T]() *SyncStack[T]`.
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| Push | `Push(data T)` | Add an element to the top. |
+| Pop | `Pop() (T, bool)` | Remove and return the top; `false` if empty. |
+| Peek | `Peek() (T, bool)` | Return the top without removing; `false` if empty. |
+| Len | `Len() int` | Number of elements. |
+| Empty | `Empty() bool` | Whether the stack is empty. |
+| Drain | `Drain() iter.Seq[T]` | Iterator popping top→bottom (empties the stack). |
+
+`SyncStack[T]` exposes the same methods, safe for concurrent use.
+
+### queue API
+
+Constructors: `New[T]() *Queue[T]`, `NewSyncQueue[T]() *SyncQueue[T]`,
+`NewBlockingQueue[T](capacity int) (*BlockingQueue[T], error)`,
+`NewPriorityQueue[T](cmp func(a, b T) int) *PriorityQueue[T]`,
+`NewPriorityQueueWithCap[T](initialCap int, cmp func(a, b T) int) (*PriorityQueue[T], error)`,
+`NewSyncPriorityQueue[T](cmp func(a, b T) int) *SyncPriorityQueue[T]`,
+`NewSyncPriorityQueueWithCap[T](initialCap int, cmp func(a, b T) int) (*SyncPriorityQueue[T], error)`.
+Errors: `ErrCapacityTooSmall`.
+
+`Queue[T]`:
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| Enqueue | `Enqueue(data T)` | Add to the back. |
+| Dequeue | `Dequeue() (T, bool)` | Remove and return the front; `false` if empty. |
+| Len | `Len() int` | Number of elements. |
+| Empty | `Empty() bool` | Whether empty. |
+| Drain | `Drain() iter.Seq[T]` | Iterator dequeuing front→back (empties the queue). |
+
+`BlockingQueue[T]`:
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| Enqueue | `Enqueue(v T)` | Add to the back; blocks while full. |
+| Dequeue | `Dequeue() T` | Remove and return the front; blocks while empty. |
+| Len | `Len() int` | Current number of elements. |
+| Empty | `Empty() bool` | Whether empty. |
+| Cap | `Cap() int` | Maximum capacity. |
+| Full | `Full() bool` | Whether at capacity. |
+
+`PriorityQueue[T]`:
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| Enqueue | `Enqueue(data T)` | Insert, restoring heap order. |
+| Peek | `Peek() (T, bool)` | Minimum without removing; `false` if empty. |
+| Dequeue | `Dequeue() (T, bool)` | Remove and return the minimum; `false` if empty. |
+| Len | `Len() int` | Number of elements. |
+| Empty | `Empty() bool` | Whether empty. |
+| Drain | `Drain() iter.Seq[T]` | Iterator draining in priority order. |
+
+`SyncQueue[T]` mirrors `Queue[T]`; `SyncPriorityQueue[T]` mirrors `PriorityQueue[T]` — same methods, safe for concurrent use.
+
+### deque API
+
+Constructors: `New[T]() *Deque[T]`, `NewWithCap[T](initialCap int) (*Deque[T], error)`,
+`NewSyncDeque[T]() *SyncDeque[T]`. Errors: `ErrCapacityTooSmall`.
+
+`Deque[T]`:
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| PushFront | `PushFront(data T)` | Add to the front. |
+| PushBack | `PushBack(data T)` | Add to the back. |
+| PopFront | `PopFront() (T, bool)` | Remove and return the front; `false` if empty. |
+| PopBack | `PopBack() (T, bool)` | Remove and return the back; `false` if empty. |
+| PeekFront | `PeekFront() (T, bool)` | Front without removing; `false` if empty. |
+| PeekBack | `PeekBack() (T, bool)` | Back without removing; `false` if empty. |
+| Len | `Len() int` | Number of elements. |
+| Empty | `Empty() bool` | Whether empty. |
+| Values | `Values() iter.Seq[T]` | Front→back iterator (non-destructive). |
+| ToSlice | `ToSlice() []T` | Copy of all elements, front→back. |
+
+`SyncDeque[T]` exposes the same methods, safe for concurrent use.
+
+### sets API
+
+Constructors: `New[T comparable](items ...T) Set[T]`, `Of[T comparable](items []T) Set[T]`
+(`Set[T]` is `map[T]struct{}`).
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| Add | `Add(items ...T)` | Insert elements (panics on a nil set). |
+| Remove | `Remove(items ...T)` | Delete elements (nil-safe no-op). |
+| Contains | `Contains(value T) bool` | Membership test. |
+| Len | `Len() int` | Number of elements. |
+| Empty | `Empty() bool` | Whether empty. |
+| ToSlice | `ToSlice() []T` | Elements as a slice (unspecified order). |
+| Values | `Values() iter.Seq[T]` | Iterator over elements (non-destructive). |
+| Union | `Union(o Set[T]) Set[T]` | New set: elements in either. |
+| Intersection | `Intersection(o Set[T]) Set[T]` | New set: elements in both. |
+| Difference | `Difference(o Set[T]) Set[T]` | New set: in this but not `o`. |
+| String | `String() string` | `set{...}` representation. |
+
+### bag API
+
+Constructors: `New[T comparable](items ...T) Bag[T]`, `Of[T comparable](items []T) Bag[T]`
+(`Bag[T]` is `map[T]int`).
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| Add | `Add(items ...T)` | Increment counts (panics on a nil bag). |
+| Remove | `Remove(items ...T)` | Decrement counts; deletes at zero. |
+| Clear | `Clear()` | Remove all items. |
+| Contains | `Contains(value T) bool` | Whether present at least once. |
+| Count | `Count(value T) int` | Occurrence count of a value. |
+| Len | `Len() int` | Total items including duplicates (O(n)). |
+| Empty | `Empty() bool` | Whether empty. |
+| ToSlice | `ToSlice() []T` | Each item repeated by its count. |
+| Unique | `Unique() []T` | One entry per distinct item. |
+| Values | `Values() iter.Seq[T]` | Iterator yielding each item by its count. |
+| Union | `Union(o Bag[T]) Bag[T]` | New bag: counts summed. |
+| Intersection | `Intersection(o Bag[T]) Bag[T]` | New bag: minimum counts. |
+| String | `String() string` | `bag{...}` representation. |
+
+### treemap API
+
+Constructor: `New[K, V any](cmp func(a, b K) int) *Map[K, V]`.
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| Put | `Put(key K, value V)` | Insert or replace. |
+| Get | `Get(key K) (V, bool)` | Value for key; `false` if absent. |
+| Contains | `Contains(key K) bool` | Whether key is present. |
+| Delete | `Delete(key K) bool` | Remove key; `false` if absent. |
+| Len | `Len() int` | Number of pairs. |
+| Empty | `Empty() bool` | Whether empty. |
+| Min | `Min() (K, bool)` | Smallest key; `false` if empty. |
+| Max | `Max() (K, bool)` | Largest key; `false` if empty. |
+| Rank | `Rank(key K) int` | Count of keys strictly less than key (O(n)). |
+| Select | `Select(r int) (K, bool)` | Key of rank `r` (O(n)); `false` if out of range. |
+| ToList | `ToList() []V` | Values in ascending key order. |
+
+### unionfind API
+
+Constructor: `New(size int) *UnionFind`. Errors: `ErrIndexOutOfRange`.
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| Union | `Union(p, q int) error` | Merge the sets of `p` and `q`. |
+| Find | `Find(p int) (int, error)` | Root of `p`'s set (path-compressing). |
+| Connected | `Connected(p, q int) (bool, error)` | Whether `p` and `q` share a set. |
+| Sets | `Sets() int` | Number of disjoint sets. |
+| String | `String() string` | Parent-link representation. |
+
+### sorting API
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| Insertion | `Insertion[T]([]T, Comparator[T])` | In-place insertion sort (stable, O(n²)). |
+| Shell | `Shell[T]([]T, Comparator[T])` | In-place Shell sort (Ciura gaps). |
+| Merge | `Merge[T]([]T, Comparator[T])` | Stable merge sort (O(n log n)). |
+| Quick | `Quick[T]([]T, Comparator[T])` | 3-way quicksort (middle-index pivot). |
+| Shuffle | `Shuffle[T]([]T) error` | Fisher–Yates via crypto/rand. |
+| ShuffleWithRandom | `ShuffleWithRandom[T]([]T, RandomNextInt) error` | Shuffle with an injectable random source. |
+| Swap | `Swap[T]([]T, i, j int)` | Exchange two elements. |
+
+Types: `Comparator[T] = func(a, b T) int`, `RandomNextInt = func(int) (int, error)`.
+
+### fn API
+
+Each slice function has a lazy `Seq` twin unless noted.
+
+| Function (+ Seq twin) | Signature | Description |
+|-----------------------|-----------|-------------|
+| Map / MapSeq | `Map[T, U]([]T, func(T) U) []U` | Transform each element. |
+| Filter / FilterSeq | `Filter[T]([]T, func(T) bool) []T` | Keep elements matching a predicate. |
+| Fold / FoldSeq | `Fold[T, U]([]T, U, func(U, T) U) U` | Reduce to a single value. |
+| Distinct / DistinctSeq | `Distinct[T comparable]([]T) []T` | Remove duplicates (first occurrence wins). |
+| Find / FindSeq | `Find[T]([]T, func(T) bool) (T, bool)` | First match; `false` if none. |
+| Any / AnySeq | `Any[T]([]T, func(T) bool) bool` | At least one element matches. |
+| All / AllSeq | `All[T]([]T, func(T) bool) bool` | All match (vacuously true if empty). |
+| ForEach / ForEachSeq | `ForEach[T]([]T, func(T))` | Run a side effect per element. |
+| GroupBy / GroupBySeq | `GroupBy[T, K comparable]([]T, func(T) K) map[K][]T` | Bucket by key (the Seq variant is eager). |
+| Partition | `Partition[T]([]T, func(T) bool) ([]T, []T)` | Split matching / non-matching (slice-only). |
+| Zip | `Zip[T, U, V]([]T, []U, func(T, U) V) []V` | Combine two slices pairwise (slice-only). |
+
+### future API
+
+Constructors: `Async[T](provider func() (T, error)) *Future[T]`,
+`AsyncWithContext[T](ctx context.Context, provider func(context.Context) (T, error)) *Future[T]`.
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| Await | `Await() (T, error)` | Block until resolved. |
+| AwaitWithContext | `AwaitWithContext(ctx context.Context) (T, error)` | Block until resolved or ctx is done. |
+| AwaitWithTimeout | `AwaitWithTimeout(d time.Duration) (T, error)` | Block until resolved or the timeout elapses. |
+| Done | `Done() bool` | Whether the computation has resolved. |
+
+### singleflight API
+
+Constructor: `New[K comparable, V any]() *SingleFlight[K, V]`.
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| Do | `Do(key K, provider func() (V, error)) *future.Future[V]` | Share one in-flight call per key. |
+
+### cache API
+
+Constructors: `NewLRUCache[K, V](opts ...Option) (*LRUCache[K, V], error)`,
+`NewLRUWithProvider[K, V](provider Provider[K, V], opts ...Option) (*LRUProvider[K, V], error)`.
+Options: `WithCapacity(n int) Option` (required), `WithTTL(d time.Duration) Option`.
+Types: `Option`, `Provider[K, V] = func(key K) (V, error)`.
+Errors: `ErrInvalidCapacity`, `ErrInvalidTTL`, `ErrNilProvider`.
+
+`LRUCache[K, V]`:
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| Get | `Get(key K) (V, bool)` | Value for key; promotes to most-recently-used. |
+| Put | `Put(key K, value V)` | Insert/update; evicts the LRU entry at capacity. |
+| Delete | `Delete(key K)` | Remove key (no-op if absent). |
+| Exists | `Exists(key K) bool` | Presence test; does not affect LRU order. |
+| Len | `Len() int` | Number of entries. |
+| Cap | `Cap() int` | Maximum entries. |
+
+`LRUProvider[K, V]`:
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| Get | `Get(key K) (V, error)` | Cached value, loading via the provider on a miss (blocks). |
+| GetWithContext | `GetWithContext(ctx context.Context, key K) (V, error)` | Context-aware `Get`. |
+| Exists | `Exists(key K) bool` | Presence test; does not affect LRU order. |
+| Invalidate | `Invalidate(key K)` | Drop key; the next `Get` re-fetches. |
+| Len | `Len() int` | Number of entries. |
+| Cap | `Cap() int` | Maximum entries. |
 
 ---
 
