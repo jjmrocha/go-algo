@@ -1,37 +1,33 @@
 package queue
 
-import (
-	"iter"
-
-	"github.com/jjmrocha/go-algo/sort"
-)
+import "iter"
 
 const defaultCap = 16
 
-type PQueue[T any] struct {
+type PriorityQueue[T any] struct {
 	items []T
 	size  int
-	cmp   sort.Comparator[T]
+	cmp   func(a, b T) int
 }
 
-func NewPriorityQueue[T any](cmp sort.Comparator[T]) *PQueue[T] {
+func NewPriorityQueue[T any](cmp func(a, b T) int) *PriorityQueue[T] {
 	q, _ := NewPriorityQueueWithCap[T](defaultCap, cmp)
 	return q
 }
 
-func NewPriorityQueueWithCap[T any](initialCap int, cmp sort.Comparator[T]) (*PQueue[T], error) {
+func NewPriorityQueueWithCap[T any](initialCap int, cmp func(a, b T) int) (*PriorityQueue[T], error) {
 	if initialCap <= 0 {
 		return nil, ErrCapacityTooSmall
 	}
 
-	return &PQueue[T]{
+	return &PriorityQueue[T]{
 		items: make([]T, initialCap),
 		size:  0,
 		cmp:   cmp,
 	}, nil
 }
 
-func (q *PQueue[T]) Enqueue(data T) {
+func (q *PriorityQueue[T]) Enqueue(data T) {
 	q.resizeIfNeeded()
 
 	q.items[q.size] = data
@@ -40,7 +36,7 @@ func (q *PQueue[T]) Enqueue(data T) {
 	q.swim()
 }
 
-func (q *PQueue[T]) Peek() (T, bool) {
+func (q *PriorityQueue[T]) Peek() (T, bool) {
 	if q.size == 0 {
 		var zero T
 		return zero, false
@@ -49,7 +45,7 @@ func (q *PQueue[T]) Peek() (T, bool) {
 	return q.items[0], true
 }
 
-func (q *PQueue[T]) Dequeue() (T, bool) {
+func (q *PriorityQueue[T]) Dequeue() (T, bool) {
 	var zero T
 
 	if q.size == 0 {
@@ -67,15 +63,15 @@ func (q *PQueue[T]) Dequeue() (T, bool) {
 	return data, true
 }
 
-func (q *PQueue[T]) Len() int {
+func (q *PriorityQueue[T]) Len() int {
 	return q.size
 }
 
-func (q *PQueue[T]) Empty() bool {
+func (q *PriorityQueue[T]) Empty() bool {
 	return q.size == 0
 }
 
-func (q *PQueue[T]) Values() iter.Seq[T] {
+func (q *PriorityQueue[T]) Drain() iter.Seq[T] {
 	return func(yield func(T) bool) {
 		for v, ok := q.Dequeue(); ok; v, ok = q.Dequeue() {
 			if !yield(v) {
@@ -85,7 +81,7 @@ func (q *PQueue[T]) Values() iter.Seq[T] {
 	}
 }
 
-func (q *PQueue[T]) resizeIfNeeded() {
+func (q *PriorityQueue[T]) resizeIfNeeded() {
 	s := len(q.items)
 
 	if q.size == s {
@@ -99,21 +95,21 @@ func (q *PQueue[T]) resizeIfNeeded() {
 	}
 }
 
-func (q *PQueue[T]) resize(newCap int) {
+func (q *PriorityQueue[T]) resize(newCap int) {
 	newItems := make([]T, newCap)
 	copy(newItems, q.items[:q.size])
 	q.items = newItems
 }
 
-func (q *PQueue[T]) swap(i, j int) {
+func (q *PriorityQueue[T]) swap(i, j int) {
 	q.items[i], q.items[j] = q.items[j], q.items[i]
 }
 
-func (q *PQueue[T]) swim() {
+func (q *PriorityQueue[T]) swim() {
 	i := q.size - 1
 	p := parent(i)
 
-	for i > 0 && q.cmp(q.items[i], q.items[p]) == sort.Before {
+	for i > 0 && q.cmp(q.items[i], q.items[p]) < 0 {
 		q.swap(i, p)
 
 		i = p
@@ -121,7 +117,7 @@ func (q *PQueue[T]) swim() {
 	}
 }
 
-func (q *PQueue[T]) sink() {
+func (q *PriorityQueue[T]) sink() {
 	i := 0
 
 	for {
@@ -129,11 +125,11 @@ func (q *PQueue[T]) sink() {
 		r := right(i)
 		smallest := i
 
-		if l < q.size && q.cmp(q.items[l], q.items[smallest]) == sort.Before {
+		if l < q.size && q.cmp(q.items[l], q.items[smallest]) < 0 {
 			smallest = l
 		}
 
-		if r < q.size && q.cmp(q.items[r], q.items[smallest]) == sort.Before {
+		if r < q.size && q.cmp(q.items[r], q.items[smallest]) < 0 {
 			smallest = r
 		}
 

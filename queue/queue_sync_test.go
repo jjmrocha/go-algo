@@ -67,7 +67,7 @@ func TestSyncQueueValues(t *testing.T) {
 		q.Enqueue(3)
 		// when
 		var result []int
-		for v := range q.Values() {
+		for v := range q.Drain() {
 			result = append(result, v)
 		}
 		// then
@@ -80,7 +80,7 @@ func TestSyncQueueValues(t *testing.T) {
 		q := NewSyncQueue[int]()
 		// when
 		called := false
-		for range q.Values() {
+		for range q.Drain() {
 			called = true
 		}
 		// then
@@ -95,7 +95,7 @@ func TestSyncQueueValues(t *testing.T) {
 		q.Enqueue(3)
 		// when
 		count := 0
-		for range q.Values() {
+		for range q.Drain() {
 			count++
 			if count == 2 {
 				break

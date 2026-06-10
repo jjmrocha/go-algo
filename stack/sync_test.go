@@ -88,7 +88,7 @@ func TestSyncStackValues(t *testing.T) {
 		s.Push(3)
 		// when
 		var result []int
-		for v := range s.Values() {
+		for v := range s.Drain() {
 			result = append(result, v)
 		}
 		// then
@@ -101,7 +101,7 @@ func TestSyncStackValues(t *testing.T) {
 		s := NewSyncStack[int]()
 		// when
 		called := false
-		for range s.Values() {
+		for range s.Drain() {
 			called = true
 		}
 		// then
@@ -116,7 +116,7 @@ func TestSyncStackValues(t *testing.T) {
 		s.Push(3)
 		// when
 		count := 0
-		for range s.Values() {
+		for range s.Drain() {
 			count++
 			if count == 2 {
 				break

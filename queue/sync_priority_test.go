@@ -42,7 +42,7 @@ func TestNewSyncPriorityQueueWithCap(t *testing.T) {
 	})
 }
 
-func TestSyncPQueueDequeue(t *testing.T) {
+func TestSyncPriorityQueueDequeue(t *testing.T) {
 	t.Run("returns elements in priority order", func(t *testing.T) {
 		// given
 		q := NewSyncPriorityQueue[int](intCmp)
@@ -68,7 +68,7 @@ func TestSyncPQueueDequeue(t *testing.T) {
 	})
 }
 
-func TestSyncPQueuePeek(t *testing.T) {
+func TestSyncPriorityQueuePeek(t *testing.T) {
 	t.Run("returns minimum without removing", func(t *testing.T) {
 		// given
 		q := NewSyncPriorityQueue[int](intCmp)
@@ -94,7 +94,7 @@ func TestSyncPQueuePeek(t *testing.T) {
 	})
 }
 
-func TestSyncPQueueValues(t *testing.T) {
+func TestSyncPriorityQueueDrain(t *testing.T) {
 	t.Run("drains queue in priority order", func(t *testing.T) {
 		// given
 		q := NewSyncPriorityQueue[int](intCmp)
@@ -103,7 +103,7 @@ func TestSyncPQueueValues(t *testing.T) {
 		q.Enqueue(2)
 		// when
 		var result []int
-		for v := range q.Values() {
+		for v := range q.Drain() {
 			result = append(result, v)
 		}
 		// then
@@ -117,7 +117,7 @@ func TestSyncPQueueValues(t *testing.T) {
 		q := NewSyncPriorityQueue[int](intCmp)
 		// when
 		called := false
-		for range q.Values() {
+		for range q.Drain() {
 			called = true
 		}
 		// then
@@ -132,7 +132,7 @@ func TestSyncPQueueValues(t *testing.T) {
 		q.Enqueue(3)
 		// when
 		count := 0
-		for range q.Values() {
+		for range q.Drain() {
 			count++
 			if count == 2 {
 				break
@@ -143,7 +143,7 @@ func TestSyncPQueueValues(t *testing.T) {
 	})
 }
 
-func TestSyncPQueueConcurrentEnqueue(t *testing.T) {
+func TestSyncPriorityQueueConcurrentEnqueue(t *testing.T) {
 	// given
 	const goroutines = 100
 	q := NewSyncPriorityQueue[int](intCmp)
@@ -161,7 +161,7 @@ func TestSyncPQueueConcurrentEnqueue(t *testing.T) {
 	assert.Equal(t, goroutines, q.Len())
 }
 
-func TestSyncPQueueConcurrentEnqueueDequeue(t *testing.T) {
+func TestSyncPriorityQueueConcurrentEnqueueDequeue(t *testing.T) {
 	// given
 	const goroutines = 50
 	q := NewSyncPriorityQueue[int](intCmp)
@@ -183,7 +183,7 @@ func TestSyncPQueueConcurrentEnqueueDequeue(t *testing.T) {
 	assert.GreaterOrEqual(t, q.Len(), 0)
 }
 
-func TestSyncPQueueConcurrentPeek(t *testing.T) {
+func TestSyncPriorityQueueConcurrentPeek(t *testing.T) {
 	// given
 	const goroutines = 100
 	q := NewSyncPriorityQueue[int](intCmp)

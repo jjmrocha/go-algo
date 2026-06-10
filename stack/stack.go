@@ -82,12 +82,12 @@ func (s *Stack[T]) Empty() bool {
 	return s.size == 0
 }
 
-// Values returns an iterator that drains the stack from top to bottom.
+// Drain returns an iterator that drains the stack from top to bottom.
 // Each popped element is yielded once; the stack is empty after the
 // iterator is fully consumed.
-func (q *Stack[T]) Values() iter.Seq[T] {
+func (s *Stack[T]) Drain() iter.Seq[T] {
 	return func(yield func(T) bool) {
-		for v, ok := q.Pop(); ok; v, ok = q.Pop() {
+		for v, ok := s.Pop(); ok; v, ok = s.Pop() {
 			if !yield(v) {
 				return
 			}

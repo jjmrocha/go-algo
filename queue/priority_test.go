@@ -4,21 +4,20 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/jjmrocha/go-algo/sort"
 	"github.com/stretchr/testify/assert"
 )
 
 func intCmp(a, b int) int {
 	if a < b {
-		return sort.Before
+		return -1
 	}
 	if a > b {
-		return sort.After
+		return 1
 	}
-	return sort.Equal
+	return 0
 }
 
-func mustNewPriorityQueueWithCap[T any](t testing.TB, cap int, cmp sort.Comparator[T]) *PQueue[T] {
+func mustNewPriorityQueueWithCap[T any](t testing.TB, cap int, cmp func(a, b T) int) *PriorityQueue[T] {
 	t.Helper()
 	q, err := NewPriorityQueueWithCap[T](cap, cmp)
 	if err != nil {
@@ -64,7 +63,7 @@ func TestNewPriorityQueueWithCap(t *testing.T) {
 	})
 }
 
-func TestPQueueEnqueue(t *testing.T) {
+func TestPriorityQueueEnqueue(t *testing.T) {
 	// given
 	q := NewPriorityQueue[int](intCmp)
 	// when
@@ -76,7 +75,7 @@ func TestPQueueEnqueue(t *testing.T) {
 	assert.False(t, q.Empty())
 }
 
-func TestPQueueDequeue(t *testing.T) {
+func TestPriorityQueueDequeue(t *testing.T) {
 	t.Run("non-empty queue returns minimum", func(t *testing.T) {
 		// given
 		q := NewPriorityQueue[int](intCmp)
@@ -127,7 +126,7 @@ func TestPQueueDequeue(t *testing.T) {
 	})
 }
 
-func TestPQueuePeek(t *testing.T) {
+func TestPriorityQueuePeek(t *testing.T) {
 	t.Run("non-empty queue returns minimum", func(t *testing.T) {
 		// given
 		q := NewPriorityQueue[int](intCmp)
@@ -177,7 +176,7 @@ func TestPQueuePeek(t *testing.T) {
 	})
 }
 
-func TestPQueueLen(t *testing.T) {
+func TestPriorityQueueLen(t *testing.T) {
 	t.Run("zero when empty", func(t *testing.T) {
 		// given
 		q := NewPriorityQueue[int](intCmp)
@@ -210,7 +209,7 @@ func TestPQueueLen(t *testing.T) {
 	})
 }
 
-func TestPQueueEmpty(t *testing.T) {
+func TestPriorityQueueEmpty(t *testing.T) {
 	t.Run("initially empty", func(t *testing.T) {
 		// given / when
 		q := NewPriorityQueue[int](intCmp)
@@ -238,7 +237,7 @@ func TestPQueueEmpty(t *testing.T) {
 	})
 }
 
-func TestPQueuePriorityOrdering(t *testing.T) {
+func TestPriorityQueuePriorityOrdering(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    []int
@@ -290,7 +289,7 @@ func TestPQueuePriorityOrdering(t *testing.T) {
 	}
 }
 
-func TestPQueueValues(t *testing.T) {
+func TestPriorityQueueDrain(t *testing.T) {
 	t.Run("drains queue in priority order", func(t *testing.T) {
 		// given
 		q := NewPriorityQueue[int](intCmp)
@@ -299,7 +298,7 @@ func TestPQueueValues(t *testing.T) {
 		q.Enqueue(2)
 		// when
 		var result []int
-		for v := range q.Values() {
+		for v := range q.Drain() {
 			result = append(result, v)
 		}
 		// then
@@ -313,7 +312,7 @@ func TestPQueueValues(t *testing.T) {
 		q := NewPriorityQueue[int](intCmp)
 		// when
 		called := false
-		for range q.Values() {
+		for range q.Drain() {
 			called = true
 		}
 		// then
@@ -328,7 +327,7 @@ func TestPQueueValues(t *testing.T) {
 		q.Enqueue(3)
 		// when
 		count := 0
-		for range q.Values() {
+		for range q.Drain() {
 			count++
 			if count == 2 {
 				break
@@ -343,7 +342,7 @@ func TestPQueueValues(t *testing.T) {
 		q := NewPriorityQueue[int](intCmp)
 		q.Enqueue(1)
 		q.Enqueue(2)
-		seq := q.Values()
+		seq := q.Drain()
 		first := slices.Collect(seq)
 		// when
 		result := slices.Collect(seq)
@@ -354,7 +353,7 @@ func TestPQueueValues(t *testing.T) {
 	})
 }
 
-func TestPQueueGrowsAndShrinks(t *testing.T) {
+func TestPriorityQueueGrowsAndShrinks(t *testing.T) {
 	// given — start with capacity smaller than the number of elements to force multiple resizes
 	const n = 100
 	q := mustNewPriorityQueueWithCap[int](t, 4, intCmp)

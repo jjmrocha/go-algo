@@ -60,12 +60,12 @@ func (s *SyncStack[T]) Empty() bool {
 	return s.s.Empty()
 }
 
-// Values returns an iterator that drains the stack from top to bottom.
+// Drain returns an iterator that drains the stack from top to bottom.
 // Each popped element is yielded once; the stack is empty after the
 // iterator is fully consumed. It is safe for concurrent use.
-func (q *SyncStack[T]) Values() iter.Seq[T] {
+func (s *SyncStack[T]) Drain() iter.Seq[T] {
 	return func(yield func(T) bool) {
-		for v, ok := q.Pop(); ok; v, ok = q.Pop() {
+		for v, ok := s.Pop(); ok; v, ok = s.Pop() {
 			if !yield(v) {
 				return
 			}

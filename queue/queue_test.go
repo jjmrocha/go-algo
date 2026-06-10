@@ -98,7 +98,7 @@ func TestQueueValues(t *testing.T) {
 		q.Enqueue(3)
 		// when
 		var result []int
-		for v := range q.Values() {
+		for v := range q.Drain() {
 			result = append(result, v)
 		}
 		// then
@@ -111,7 +111,7 @@ func TestQueueValues(t *testing.T) {
 		q := New[int]()
 		// when
 		called := false
-		for range q.Values() {
+		for range q.Drain() {
 			called = true
 		}
 		// then
@@ -126,7 +126,7 @@ func TestQueueValues(t *testing.T) {
 		q.Enqueue(3)
 		// when
 		count := 0
-		for range q.Values() {
+		for range q.Drain() {
 			count++
 			if count == 2 {
 				break
