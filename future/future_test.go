@@ -258,3 +258,64 @@ func TestDone(t *testing.T) {
 		assert.True(t, result)
 	})
 }
+
+func TestResolve(t *testing.T) {
+	testError := errors.New("test error")
+
+	t.Run("unblocks await with the resolved value", func(t *testing.T) {
+		// given
+		f := New[int]()
+		assert.False(t, f.Done())
+		// when
+		f.Resolve(42, nil)
+		// then
+		result, err := f.Await()
+		assert.NoError(t, err)
+		assert.Equal(t, 42, result)
+		assert.True(t, f.Done())
+	})
+
+	t.Run("resolves with an error", func(t *testing.T) {
+		// given
+		f := New[string]()
+		// when
+		f.Resolve("", testError)
+		// then
+		result, err := f.Await()
+		assert.ErrorIs(t, err, testError)
+		assert.Empty(t, result)
+	})
+
+	t.Run("second resolve is a no-op", func(t *testing.T) {
+		// given
+		f := New[int]()
+		f.Resolve(1, nil)
+		// when
+		f.Resolve(2, testError)
+		// then
+		result, err := f.Await()
+		assert.NoError(t, err)
+		assert.Equal(t, 1, result)
+	})
+
+	t.Run("concurrent resolves keep a single result", func(t *testing.T) {
+		// given
+		const goroutines = 100
+		f := New[int]()
+		var wg sync.WaitGroup
+		// when
+		for i := range goroutines {
+			wg.Add(1)
+			go func(v int) {
+				defer wg.Done()
+				f.Resolve(v, nil)
+			}(i)
+		}
+		wg.Wait()
+		// then
+		result, err := f.Await()
+		assert.NoError(t, err)
+		assert.GreaterOrEqual(t, result, 0)
+		assert.Less(t, result, goroutines)
+	})
+}

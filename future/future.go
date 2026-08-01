@@ -17,6 +17,7 @@ package future
 
 import (
 	"context"
+	"sync"
 	"time"
 )
 
@@ -25,14 +26,17 @@ import (
 // until the result is ready and then all receive the same value and error.
 // The result is cached, so calls after the computation completes return immediately.
 type Future[T any] struct {
+	once sync.Once
 	done chan struct{}
 	val  T
 	err  error
 }
 
-// newFuture creates an uninitialised Future with a signal channel that is
-// closed by resolve once the computation completes, unblocking all AwaitWithContext callers.
-func newFuture[T any]() *Future[T] {
+// New creates an unresolved Future. The caller is responsible for completing
+// it with [Future.Resolve]; until then all Await variants block. Futures must
+// be created with New (or Async / AsyncWithContext) — the zero value of
+// Future is not usable.
+func New[T any]() *Future[T] {
 	return &Future[T]{
 		done: make(chan struct{}),
 	}
@@ -43,9 +47,9 @@ func newFuture[T any]() *Future[T] {
 // forwarded to provider, allowing the async work to respect cancellation and
 // deadlines set by the caller.
 func AsyncWithContext[T any](ctx context.Context, provider func(context.Context) (T, error)) *Future[T] {
-	f := newFuture[T]()
+	f := New[T]()
 	go func() {
-		f.resolve(provider(ctx))
+		f.Resolve(provider(ctx))
 	}()
 	return f
 }
@@ -53,9 +57,9 @@ func AsyncWithContext[T any](ctx context.Context, provider func(context.Context)
 // Async starts provider in a new goroutine and returns a Future that will
 // hold the result once the goroutine completes.
 func Async[T any](provider func() (T, error)) *Future[T] {
-	f := newFuture[T]()
+	f := New[T]()
 	go func() {
-		f.resolve(provider())
+		f.Resolve(provider())
 	}()
 	return f
 }
@@ -111,10 +115,12 @@ func (f *Future[T]) Done() bool {
 	}
 }
 
-// resolve stores the computation result and unblocks all callers blocked in
-// Await, AwaitWithContext, or AwaitWithTimeout by closing the done channel.
-// It must be called exactly once per Future.
-func (f *Future[T]) resolve(val T, err error) {
-	f.val, f.err = val, err
-	close(f.done)
+// Resolve completes the Future with the given value and error, unblocking
+// all callers blocked in Await, AwaitWithContext, or AwaitWithTimeout.
+// Only the first call has any effect; subsequent calls are no-ops.
+func (f *Future[T]) Resolve(val T, err error) {
+	f.once.Do(func() {
+		f.val, f.err = val, err
+		close(f.done)
+	})
 }

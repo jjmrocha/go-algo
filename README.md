@@ -561,11 +561,13 @@ Each slice function has a lazy `Seq` twin unless noted.
 
 ### future API
 
-Constructors: `Async[T](provider func() (T, error)) *Future[T]`,
+Constructors: `New[T]() *Future[T]` (manual resolution),
+`Async[T](provider func() (T, error)) *Future[T]`,
 `AsyncWithContext[T](ctx context.Context, provider func(context.Context) (T, error)) *Future[T]`.
 
 | Method | Signature | Description |
 |--------|-----------|-------------|
+| Resolve | `Resolve(val T, err error)` | Complete the future; only the first call has effect. |
 | Await | `Await() (T, error)` | Block until resolved. |
 | AwaitWithContext | `AwaitWithContext(ctx context.Context) (T, error)` | Block until resolved or ctx is done. |
 | AwaitWithTimeout | `AwaitWithTimeout(d time.Duration) (T, error)` | Block until resolved or the timeout elapses. |
