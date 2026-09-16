@@ -3,7 +3,7 @@
 A collection of generic algorithms and data structures for Go, designed to be reused across projects.
 Each package is independently importable, and the runtime has no third-party dependencies.
 
-Requires **Go 1.25+** (uses `iter.Seq` / range-over-func, the `min` builtin, and `maps.Copy`).
+Requires **Go 1.27+** (uses `iter.Seq` / range-over-func, the `min` builtin, `maps.Copy`, and the `uuid` package).
 
 ## Installation
 
@@ -24,6 +24,7 @@ go get github.com/jjmrocha/go-algo
 | [`unionfind`](#unionfind) | Ordered & disjoint-set | Disjoint-set / union-find |
 | [`sorting`](#sorting) | Algorithms | Insertion, Shell, Merge, Quick, and Shuffle |
 | [`fn`](#fn) | Algorithms | Map / Filter / Fold / … for slices and iterators |
+| [`token`](#token) | Algorithms | Compact, URL-safe 128-bit base-36 identifiers |
 | [`future`](#future) | Concurrency | Async result with await, timeout, and cancellation |
 | [`singleflight`](#singleflight) | Concurrency | Duplicate-call suppression |
 | [`cache`](#cache) | Concurrency | LRU cache and auto-loading provider |
@@ -290,6 +291,29 @@ result := slices.Collect(seq) // [20, 40]
 
 `Partition` and `Zip` are slice-only; `GroupBySeq` materialises its groups before yielding (grouping
 is inherently eager).
+
+### `token`
+
+Compact, URL-safe identifiers: 128 bits written as exactly 25 lowercase base-36 characters (`0-9a-z`),
+left-padded with zeros so tokens sort in the same order as the values they encode. · [API ↓](#token-api)
+
+```go
+import (
+    "uuid"
+
+    "github.com/jjmrocha/go-algo/token"
+)
+
+t := token.New() // 128 bits from crypto/rand, e.g. "3w7nni025418b96lydzqxyb8i"
+
+u := uuid.MustParse("41c9ad60-0cab-4e1b-afc8-cf97fbb94662")
+token.FromUUID(u) // "3w7nni025418b96lydzqxyb8i" — any UUID version, bits unchanged
+
+token.Valid(t)                           // true
+token.Valid("3W7NNI025418B96LYDZQXYB8I") // false — uppercase is rejected
+```
+
+`New` sets no UUID version or variant bits. Tokens are one-way: there is no decoding back to a UUID.
 
 ---
 
@@ -558,6 +582,14 @@ Each slice function has a lazy `Seq` twin unless noted.
 | GroupBy / GroupBySeq | `GroupBy[T, K comparable]([]T, func(T) K) map[K][]T` | Bucket by key (the Seq variant is eager). |
 | Partition | `Partition[T]([]T, func(T) bool) ([]T, []T)` | Split matching / non-matching (slice-only). |
 | Zip | `Zip[T, U, V]([]T, []U, func(T, U) V) []V` | Combine two slices pairwise (slice-only). |
+
+### token API
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| New | `New() string` | Token for 128 random bits (crypto/rand). |
+| FromUUID | `FromUUID(u uuid.UUID) string` | Token for the 128 bits of `u`. |
+| Valid | `Valid(s string) bool` | Whether `s` is 25 chars of `0-9a-z` with a value that fits in 128 bits. |
 
 ### future API
 

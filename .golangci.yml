@@ -32,9 +32,11 @@ linters:
   exclusions:
     rules:
       # gosec is intentionally suppressed in tests for controlled error paths
+      # goconst is suppressed in tests where table-driven case names repeat
       - path: _test\.go
         linters:
           - gosec
+          - goconst
 
 formatters:
   enable:
