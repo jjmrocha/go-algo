@@ -304,16 +304,19 @@ import (
     "github.com/jjmrocha/go-algo/token"
 )
 
-t := token.New() // 128 bits from crypto/rand, e.g. "3w7nni025418b96lydzqxyb8i"
+t := token.New() // random UUID v4, e.g. "3w7nni025418b96lydzqxyb8i"
 
 u := uuid.MustParse("41c9ad60-0cab-4e1b-afc8-cf97fbb94662")
 token.FromUUID(u) // "3w7nni025418b96lydzqxyb8i" — any UUID version, bits unchanged
+
+token.ToUUID("3w7nni025418b96lydzqxyb8i") // u, nil
+token.ToUUID("not-a-token")               // uuid.Nil(), token.ErrInvalidToken
 
 token.Valid(t)                           // true
 token.Valid("3W7NNI025418B96LYDZQXYB8I") // false — uppercase is rejected
 ```
 
-`New` sets no UUID version or variant bits. Tokens are one-way: there is no decoding back to a UUID.
+`ToUUID` reverses `FromUUID`, so `ToUUID(New())` is always a valid UUID v4.
 
 ---
 
@@ -587,9 +590,12 @@ Each slice function has a lazy `Seq` twin unless noted.
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| New | `New() string` | Token for 128 random bits (crypto/rand). |
+| New | `New() string` | Token for a new random UUID v4. |
 | FromUUID | `FromUUID(u uuid.UUID) string` | Token for the 128 bits of `u`. |
+| ToUUID | `ToUUID(s string) (uuid.UUID, error)` | UUID whose 128 bits `s` encodes; inverse of `FromUUID`. |
 | Valid | `Valid(s string) bool` | Whether `s` is 25 chars of `0-9a-z` with a value that fits in 128 bits. |
+
+Errors: `ErrInvalidToken`.
 
 ### future API
 

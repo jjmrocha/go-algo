@@ -7,8 +7,8 @@
 package token
 
 import (
-	"crypto/rand"
 	"encoding/binary"
+	"errors"
 	"math/bits"
 	"uuid"
 )
@@ -20,22 +20,30 @@ const (
 	maxEncoded = "f5lxx1zz5pnorynqglhzmsp33"
 )
 
-var readRandom = func() (b [16]byte) {
-	// crypto/rand.Read never returns an error since Go 1.24.
-	_, _ = rand.Read(b[:])
-	return b
-}
+// ErrInvalidToken is returned by [ToUUID] when its input is not a valid token.
+var ErrInvalidToken = errors.New("invalid token")
 
-// New returns a token encoding 128 bits from a cryptographically secure
-// random source. No UUID version or variant bits are set.
+// New returns a token encoding a new random UUID version 4, so [ToUUID]
+// converts it back to a valid UUID v4.
 func New() string {
-	return encode(readRandom())
+	return FromUUID(uuid.NewV4())
 }
 
 // FromUUID returns the token encoding the 128 bits of u. Any UUID version is
 // accepted and its bits are used unchanged.
 func FromUUID(u uuid.UUID) string {
 	return encode(u)
+}
+
+// ToUUID returns the UUID whose 128 bits s encodes. It is the inverse of
+// [FromUUID]. If s is not a valid token (see [Valid]), it returns [uuid.Nil]
+// and [ErrInvalidToken].
+func ToUUID(s string) (uuid.UUID, error) {
+	if !Valid(s) {
+		return uuid.Nil(), ErrInvalidToken
+	}
+
+	return decode(s), nil
 }
 
 // Valid reports whether s is a well-formed token: exactly 25 characters from
@@ -70,4 +78,25 @@ func encode(b [16]byte) string {
 	}
 
 	return string(buf[:])
+}
+
+func decode(s string) (b [16]byte) {
+	var hi, lo uint64
+
+	for i := range len(s) {
+		c := s[i]
+		digit := uint64(c - '0')
+		if c >= 'a' {
+			digit = uint64(c-'a') + 10
+		}
+
+		var carry, add uint64
+		carry, lo = bits.Mul64(lo, base)
+		lo, add = bits.Add64(lo, digit, 0)
+		hi = hi*base + carry + add
+	}
+
+	binary.BigEndian.PutUint64(b[:8], hi)
+	binary.BigEndian.PutUint64(b[8:], lo)
+	return b
 }

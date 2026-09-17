@@ -20,6 +20,13 @@ func BenchmarkFromUUID(b *testing.B) {
 	}
 }
 
+func BenchmarkToUUID(b *testing.B) {
+	b.ReportAllocs()
+	for b.Loop() {
+		_, _ = ToUUID("3w7nni025418b96lydzqxyb8i")
+	}
+}
+
 func BenchmarkValid(b *testing.B) {
 	b.ReportAllocs()
 	for b.Loop() {

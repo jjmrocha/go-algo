@@ -9,59 +9,31 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// stubRandom replaces the random source for the duration of the test.
-func stubRandom(t *testing.T, random func() [16]byte) {
-	t.Helper()
-	original := readRandom
-	readRandom = random
-	t.Cleanup(func() { readRandom = original })
-}
-
 func TestNew(t *testing.T) {
-	t.Run("encodes the bytes read from the random source", func(t *testing.T) {
-		// given
-		random := uuid.MustParse("41c9ad60-0cab-4e1b-afc8-cf97fbb94662")
-		stubRandom(t, func() [16]byte { return random })
-		// when
-		result := New()
-		// then
-		expected := "3w7nni025418b96lydzqxyb8i"
-		assert.Equal(t, expected, result)
-	})
-
-	t.Run("keeps every random bit without setting uuid version or variant", func(t *testing.T) {
-		// given
-		stubRandom(t, func() [16]byte { return uuid.Max() })
-		// when
-		result := New()
-		// then
-		expected := "f5lxx1zz5pnorynqglhzmsp33"
-		assert.Equal(t, expected, result)
-	})
-
-	t.Run("reads fresh random bytes on each call", func(t *testing.T) {
-		// given
-		var counter byte
-		stubRandom(t, func() (b [16]byte) {
-			counter++
-			b[len(b)-1] = counter
-			return b
-		})
-		// when
-		result1 := New()
-		result2 := New()
-		// then
-		expected1 := "0000000000000000000000001"
-		expected2 := "0000000000000000000000002"
-		assert.Equal(t, expected1, result1)
-		assert.Equal(t, expected2, result2)
-	})
-
-	t.Run("default random source yields a valid token", func(t *testing.T) {
+	t.Run("returns a valid token", func(t *testing.T) {
 		// when
 		result := New()
 		// then
 		assert.True(t, Valid(result), "invalid token %q", result)
+	})
+
+	t.Run("encodes a uuid v4", func(t *testing.T) {
+		// given
+		token := New()
+		// when
+		result, err := ToUUID(token)
+		// then
+		assert.NoError(t, err)
+		assert.Equal(t, byte(4), result[6]>>4, "version of %s", result)
+		assert.Equal(t, byte(0b10), result[8]>>6, "variant of %s", result)
+	})
+
+	t.Run("returns a different token on each call", func(t *testing.T) {
+		// when
+		result1 := New()
+		result2 := New()
+		// then
+		assert.NotEqual(t, result1, result2)
 	})
 }
 
@@ -137,6 +109,100 @@ func TestFromUUID(t *testing.T) {
 	})
 }
 
+func TestToUUID(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected uuid.UUID
+	}{
+		{
+			name:     "all zeros decodes as nil uuid",
+			input:    "0000000000000000000000000",
+			expected: uuid.Nil(),
+		},
+		{
+			name:     "largest token decodes as max uuid",
+			input:    "f5lxx1zz5pnorynqglhzmsp33",
+			expected: uuid.Max(),
+		},
+		{
+			name:     "last digit one decodes as value one",
+			input:    "0000000000000000000000001",
+			expected: uuid.MustParse("00000000-0000-0000-0000-000000000001"),
+		},
+		{
+			name:     "second digit one decodes as value 36",
+			input:    "0000000000000000000000010",
+			expected: uuid.MustParse("00000000-0000-0000-0000-000000000024"),
+		},
+		{
+			name:     "value 2^64 carries from the low half into the high half",
+			input:    "0000000000003w5e11264sgsg",
+			expected: uuid.MustParse("00000000-0000-0001-0000-000000000000"),
+		},
+		{
+			name:     "matches the uuid of the lowercase narciso token",
+			input:    "3w7nni025418b96lydzqxyb8i",
+			expected: uuid.MustParse("41c9ad60-0cab-4e1b-afc8-cf97fbb94662"),
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			input := tc.input
+			// when
+			result, err := ToUUID(input)
+			// then
+			assert.NoError(t, err)
+			assert.Equal(t, tc.expected, result)
+		})
+	}
+
+	invalid := []struct {
+		name  string
+		input string
+	}{
+		{name: "one above the largest 128-bit value", input: "f5lxx1zz5pnorynqglhzmsp34"},
+		{name: "uppercase letter", input: "3W7nni025418b96lydzqxyb8i"},
+		{name: "empty string", input: ""},
+		{name: "one character short", input: "000000000000000000000000"},
+		{name: "one character long", input: "00000000000000000000000000"},
+		{name: "hyphenated uuid", input: "41c9ad60-0cab-4e1b-afc8-cf97fbb94662"},
+		{name: "character outside the alphabet", input: "000000000000000000000000_"},
+	}
+
+	for _, tc := range invalid {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			input := tc.input
+			// when
+			result, err := ToUUID(input)
+			// then
+			assert.ErrorIs(t, err, ErrInvalidToken)
+			assert.Equal(t, uuid.Nil(), result)
+		})
+	}
+
+	t.Run("reverses FromUUID for every uuid", func(t *testing.T) {
+		// given
+		input := []uuid.UUID{
+			uuid.Nil(),
+			uuid.MustParse("00000000-0000-0000-ffff-ffffffffffff"),
+			uuid.MustParse("0197a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b"),
+			uuid.MustParse("41c9ad60-0cab-4e1b-afc8-cf97fbb94662"),
+			uuid.Max(),
+		}
+		// when
+		result := make([]uuid.UUID, len(input))
+		for i, u := range input {
+			result[i], _ = ToUUID(FromUUID(u))
+		}
+		// then
+		assert.Equal(t, input, result)
+	})
+}
+
 func TestValid(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -193,6 +259,8 @@ func TestAllocations(t *testing.T) {
 	}{
 		{name: "New allocates only the result string", call: func() { _ = New() }, expected: 1},
 		{name: "FromUUID allocates only the result string", call: func() { _ = FromUUID(u) }, expected: 1},
+		{name: "ToUUID does not allocate", call: func() { _, _ = ToUUID("3w7nni025418b96lydzqxyb8i") }, expected: 0},
+		{name: "ToUUID with an invalid token does not allocate", call: func() { _, _ = ToUUID("not a token") }, expected: 0},
 		{name: "Valid does not allocate", call: func() { _ = Valid("3w7nni025418b96lydzqxyb8i") }, expected: 0},
 	}
 
